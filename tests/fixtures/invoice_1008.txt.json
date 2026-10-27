@@ -1,0 +1,80 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1008",
+      "vendor": "NoProd Industries",
+      "invoice_date": "2026-01-10",
+      "due_date": "2026-01-20",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "SuperGizmo",
+          "quantity": 12.0,
+          "unit_price": 400.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "MegaSprocket",
+          "quantity": 6.0,
+          "unit_price": 850.0,
+          "stated_amount": null,
+          "note": null
+        }
+      ],
+      "stated_subtotal": null,
+      "stated_tax_rate": null,
+      "stated_tax_amount": null,
+      "stated_shipping": null,
+      "stated_total": 9900.0,
+      "payment_terms": null,
+      "revision": null,
+      "risk_signals": [
+        {
+          "description": "Sender email domain does not match the vendor name and uses a suspicious domain (noproduct.biz).",
+          "quote": "From: billing@noproduct.biz"
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": null,
+          "note": "lookup_item found no catalog item named SuperGizmo; search returned no similar names."
+        },
+        {
+          "line": 2,
+          "sku": null,
+          "note": "lookup_item found no catalog item named MegaSprocket; search returned no similar names."
+        }
+      ],
+      "summary": "Neither invoice line matches a catalog item. Stock was not checked because no SKUs were identified."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "reject",
+      "rationale": "Reject INV-1008 from NoProd Industries (2026-01-10), total $9,900.00 USD. Error findings: SuperGizmo (12 × $400.00 = $4,800.00) and MegaSprocket (6 × $850.00 = $5,100.00) are not in inventory; catalog lookup returned found=false for both. Invoice history has no prior runs, so no number conflict. Currency is USD and total is under $10,000.00. The noproduct.biz sender warning is uncorroborated and does not change the required rejection.",
+      "checklist_responses": [
+        "Error — Line 1 SuperGizmo not in inventory (lookup found=false); 12 × $400.00 = $4,800.00. Reject.",
+        "Error — Line 2 MegaSprocket not in inventory (lookup found=false); 6 × $850.00 = $5,100.00. Reject.",
+        "Currency USD — no non-USD review trigger.",
+        "Price above catalog — neither line is in catalog, so no catalog price to compare; errors already require reject.",
+        "Revised invoice — document does not state a revision.",
+        "Invoice-number conflict — get_invoice_history for INV-1008 returned no prior runs.",
+        "Total $9,900.00 is not over $10,000.00.",
+        "Risk signal — billing@noproduct.biz domain mismatch is a warning only; history does not show another vendor or a payment redirect, so it does not alter the error-based reject."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The reject decision matches policy and the case file; inventory misses, amounts, history, and the uncorroborated sender warning are all correctly handled."
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1001",
+      "vendor": "Widgets Inc.",
+      "invoice_date": "2026-01-15",
+      "due_date": "2026-02-01",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 10.0,
+          "unit_price": 250.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 5.0,
+          "unit_price": 500.0,
+          "stated_amount": null,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 5000.0,
+      "stated_tax_rate": 0.0,
+      "stated_tax_amount": 0.0,
+      "stated_shipping": null,
+      "stated_total": 5000.0,
+      "payment_terms": "Net 15",
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact catalog match for WidgetA; stock 15 covers quantity 10."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact catalog match for WidgetB; stock 10 covers quantity 5."
+        }
+      ],
+      "summary": "Both invoice lines match catalog items WidgetA and WidgetB exactly. Requested quantities are in stock for both items."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "approve",
+      "rationale": "Approve INV-1001 (Widgets Inc., USD, dated 2026-01-15). No error-level findings. WidgetA 10 × $250.00 = $2,500.00 matches catalog $250.00 (stock 15). WidgetB 5 × $500.00 = $2,500.00 matches catalog $500.00 (stock 10). Subtotal, tax $0.00, and total $5,000.00 agree. Total is under $10,000.00. Invoice history has no prior runs, so no number conflict. No revised invoice, non-USD currency, price-above-catalog, or corroborated risk signals.",
+      "checklist_responses": [
+        "Error-level findings: none in the case file; nothing to reject.",
+        "Currency: USD, so not a non-USD review trigger.",
+        "Prices vs catalog: WidgetA $250.00 and WidgetB $500.00 match catalog unit prices; neither line is above catalog.",
+        "Revised invoice: not indicated.",
+        "Invoice-number conflict: get_invoice_history for INV-1001 returned no prior runs.",
+        "Total $5,000.00 is not over $10,000.00.",
+        "Risk signals: none stated; nothing to escalate.",
+        "Stock: requested quantities (10 and 5) are within stock (15 and 10)."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The approval is consistent with the case file, catalog and stock records, empty invoice history, and the standard-mode policy."
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1013",
+      "vendor": "Atlas Industrial Supply",
+      "invoice_date": "2026-01-24",
+      "due_date": "2026-03-24",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 15.0,
+          "unit_price": 250.0,
+          "stated_amount": 3750.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 10.0,
+          "unit_price": 500.0,
+          "stated_amount": 5000.0,
+          "note": null
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 5.0,
+          "unit_price": 750.0,
+          "stated_amount": 3750.0,
+          "note": null
+        },
+        {
+          "description": "WidgetA",
+          "quantity": 5.0,
+          "unit_price": 240.0,
+          "stated_amount": 1200.0,
+          "note": "Volume discount"
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 8.0,
+          "unit_price": 480.0,
+          "stated_amount": 3840.0,
+          "note": "Volume discount"
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 3.0,
+          "unit_price": 750.0,
+          "stated_amount": 2250.0,
+          "note": "Expedited"
+        },
+        {
+          "description": "WidgetA",
+          "quantity": 2.0,
+          "unit_price": 250.0,
+          "stated_amount": 500.0,
+          "note": "Replacement"
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 1.0,
+          "unit_price": 750.0,
+          "stated_amount": 750.0,
+          "note": "Sample"
+        }
+      ],
+      "stated_subtotal": 21040.0,
+      "stated_tax_rate": 0.07,
+      "stated_tax_amount": 1472.8,
+      "stated_shipping": null,
+      "stated_total": 22562.8,
+      "payment_terms": "Net 60",
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact match for WidgetA; catalog price 250.0; total qty 22 exceeds stock 15."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact match for WidgetB; catalog price 500.0; total qty 18 exceeds stock 10."
+        },
+        {
+          "line": 3,
+          "sku": "GadgetX",
+          "note": "Exact match for GadgetX; catalog price 750.0; total qty 9 exceeds stock 5."
+        },
+        {
+          "line": 4,
+          "sku": "WidgetA",
+          "note": "Exact match for WidgetA; unit price 240.0 differs from catalog 250.0; total qty 22 exceeds stock 15."
+        },
+        {
+          "line": 5,
+          "sku": "WidgetB",
+          "note": "Exact match for WidgetB; unit price 480.0 differs from catalog 500.0; total qty 18 exceeds stock 10."
+        },
+        {
+          "line": 6,
+          "sku": "GadgetX",
+          "note": "Exact match for GadgetX; catalog price 750.0; total qty 9 exceeds stock 5."
+        },
+        {
+          "line": 7,
+          "sku": "WidgetA",
+          "note": "Exact match for WidgetA; catalog price 250.0; total qty 22 exceeds stock 15."
+        },
+        {
+          "line": 8,
+          "sku": "GadgetX",
+          "note": "Exact match for GadgetX; catalog price 750.0; total qty 9 exceeds stock 5."
+        }
+      ],
+      "summary": "All eight lines matched catalog items WidgetA, WidgetB, and GadgetX exactly. Requested totals exceed stock for every item: WidgetA 22 vs 15, WidgetB 18 vs 10, and GadgetX 9 vs 5."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "reject",
+      "rationale": "Reject INV-1013 (Atlas Industrial Supply, USD, 2026-01-24). Error-level findings require rejection. Catalog checks confirm WidgetA stock 15 at $250.00, WidgetB stock 10 at $500.00, and GadgetX stock 5 at $750.00, but the invoice requests 22, 18, and 9. No line price exceeds catalog (WidgetA $240–$250; WidgetB $480–$500; GadgetX $750). Subtotal $21,040.00 and tax $1,472.80 compute to $22,512.80, yet the stated total is $22,562.80 ($50.00 overstated). History has no prior runs, so there is no invoice-number conflict. The amount is over $10,000, but the errors alone fix the outcome as reject.",
+      "checklist_responses": [
+        "Error findings: WidgetA 22 requested vs 15 stock, WidgetB 18 vs 10, GadgetX 9 vs 5 — all corroborated by catalog lookup; reject.",
+        "Total error: stated $22,562.80 vs computed $22,512.80 (subtotal $21,040.00 + 7% tax $1,472.80); overstated by $50.00; reject.",
+        "Currency is USD; no non-USD issue.",
+        "No price above catalog: WidgetA lines $250/$240/$250 vs $250; WidgetB $500/$480 vs $500; GadgetX all $750 vs $750.",
+        "Invoice history for INV-1013 has no prior runs; no number conflict and no evidence it is a revised invoice.",
+        "Total exceeds $10,000 ($22,512.80 computed). No separate risk signals in the case file. Errors already require reject; the high total does not change that outcome."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The reject decision matches the fixed policy and every cited stock, price, total, and history fact is corroborated."
+    }
+  ]
+}

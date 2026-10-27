@@ -1,0 +1,71 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1014",
+      "vendor": "TechParts International",
+      "invoice_date": "2026-01-26",
+      "due_date": "2026-02-26",
+      "currency": "EUR",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 4.0,
+          "unit_price": 225.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 6.0,
+          "unit_price": 475.0,
+          "stated_amount": null,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 3750.0,
+      "stated_tax_rate": 0.1,
+      "stated_tax_amount": 375.0,
+      "stated_shipping": null,
+      "stated_total": 4125.0,
+      "payment_terms": "Net 30",
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact match for WidgetA; stock 15 covers quantity 4."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact match for WidgetB; stock 10 covers quantity 6."
+        }
+      ],
+      "summary": "Both invoice lines match catalog items WidgetA and WidgetB exactly. Requested quantities are in stock."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "needs_review",
+      "rationale": "Fixed outcome is needs_review: invoice INV-1014 from TechParts International is in EUR, not USD, and no FX conversion was done (warning). Stated total is 4,125.00 EUR (subtotal 3,750.00 EUR + tax 375.00 EUR at 10%). Lines: WidgetA 4 × 225.00 EUR = 900.00; WidgetB 6 × 475.00 EUR = 2,850.00. Catalog is USD (WidgetA 250.00, stock 15; WidgetB 500.00, stock 10), so unit prices cannot be compared without FX. No error-level findings. Invoice history has no prior runs, so no number conflict or payment redirect. Total is not over $10,000. Human must review the currency.",
+      "checklist_responses": [
+        "Error-level findings: none. Only warning is EUR, not USD; no FX conversion. Not a reject.",
+        "Non-USD currency: INV-1014 is 4,125.00 EUR. Policy requires human review. Catalog USD prices (WidgetA 250.00, WidgetB 500.00) are not compared without FX. No revised invoice. History for INV-1014 has no runs, so no invoice-number conflict.",
+        "Total over $10,000 or risk signals: total is 4,125.00 EUR, not over $10,000. The EUR warning is the policy trigger for needs_review, not an uncorroborated risk that would be waived. No payment-redirect language.",
+        "Otherwise approve does not apply: fixed outcome is needs_review because currency is EUR."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The needs_review decision matches the fixed policy outcome and the corroborated EUR warning, and the rationale’s amounts, lines, catalog prices, stock, and empty history are accurate."
+    }
+  ]
+}

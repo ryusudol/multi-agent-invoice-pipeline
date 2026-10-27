@@ -1,0 +1,77 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1013",
+      "vendor": "Atlas Industrial Supply",
+      "invoice_date": "2026-01-24",
+      "due_date": "2026-03-24",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 15.0,
+          "unit_price": 250.0,
+          "stated_amount": 3750.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 10.0,
+          "unit_price": 500.0,
+          "stated_amount": 5000.0,
+          "note": null
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 5.0,
+          "unit_price": 750.0,
+          "stated_amount": 3750.0,
+          "note": null
+        },
+        {
+          "description": "WidgetA",
+          "quantity": 5.0,
+          "unit_price": 240.0,
+          "stated_amount": 1200.0,
+          "note": "Volume discount"
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 8.0,
+          "unit_price": 480.0,
+          "stated_amount": 3840.0,
+          "note": "Volume discount"
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 3.0,
+          "unit_price": 750.0,
+          "stated_amount": 2250.0,
+          "note": "Expedited"
+        },
+        {
+          "description": "WidgetA",
+          "quantity": 2.0,
+          "unit_price": 250.0,
+          "stated_amount": 500.0,
+          "note": "Replacement"
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 1.0,
+          "unit_price": 750.0,
+          "stated_amount": 750.0,
+          "note": "Sample"
+        }
+      ],
+      "stated_subtotal": 21040.0,
+      "stated_tax_rate": 0.07,
+      "stated_tax_amount": 1472.8,
+      "stated_shipping": null,
+      "stated_total": 22562.8,
+      "payment_terms": "Net 60",
+      "revision": null,
+      "risk_signals": []
+    }
+  ]
+}

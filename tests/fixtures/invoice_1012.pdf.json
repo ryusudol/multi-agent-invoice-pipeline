@@ -1,0 +1,88 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV 1012",
+      "vendor": "QuickShip Distributers (formerly FastShip Ltd.)",
+      "invoice_date": "26-Jan-2026",
+      "due_date": "25-Feb-2026",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Widget A",
+          "quantity": 12.0,
+          "unit_price": 250.0,
+          "stated_amount": 3000.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 7.0,
+          "unit_price": 500.0,
+          "stated_amount": 3500.0,
+          "note": null
+        },
+        {
+          "description": "Gadget X",
+          "quantity": 4.0,
+          "unit_price": 750.0,
+          "stated_amount": 3000.0,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 9500.0,
+      "stated_tax_rate": 0.05,
+      "stated_tax_amount": 475.0,
+      "stated_shipping": null,
+      "stated_total": 9975.0,
+      "payment_terms": "Net 30",
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Matched catalog item WidgetA; stock 15 covers quantity 12."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Matched catalog item WidgetB; stock 10 covers quantity 7."
+        },
+        {
+          "line": 3,
+          "sku": "GadgetX",
+          "note": "Matched catalog item GadgetX; stock 5 covers quantity 4."
+        }
+      ],
+      "summary": "All three lines match catalog items WidgetA, WidgetB, and GadgetX. Stock is sufficient for each requested quantity."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "approve",
+      "rationale": "Approve INV 1012. No error-level findings. Currency is USD. Total is $9,975.00, under $10,000.00. Lines match catalog: WidgetA 12 × $250.00 = $3,000.00 (stock 15), WidgetB 7 × $500.00 = $3,500.00 (stock 10), GadgetX 4 × $750.00 = $3,000.00 (stock 5). Subtotal $9,500.00 and tax $475.00 (5%) agree. Invoice history for INV-1012 has no prior runs, so no number conflict, revision, or payment redirect. No risk signal is corroborated. Standard mode; no concrete problem.",
+      "checklist_responses": [
+        "Error-level findings: none listed; nothing forces reject.",
+        "Currency: USD, so no non-USD human review.",
+        "Prices vs catalog: WidgetA $250.00, WidgetB $500.00, GadgetX $750.00 all match stated unit prices; not above catalog.",
+        "Revised invoice: not indicated; history runs are empty.",
+        "Invoice-number conflict: get_invoice_history for INV 1012 returned no prior runs or other vendor.",
+        "Total threshold: $9,975.00 is not over $10,000.00.",
+        "Risk signals: none in findings; vendor name note is not corroborated by history or a payment-redirect request.",
+        "Stock: WidgetA 15≥12, WidgetB 10≥7, GadgetX 5≥4; validation agent confirms sufficiency.",
+        "Amounts: subtotal $9,500.00 and tax $475.00 match computed totals."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The approval is factually accurate, policy-compliant, and no material finding or corroborated risk signal was ignored."
+    }
+  ]
+}

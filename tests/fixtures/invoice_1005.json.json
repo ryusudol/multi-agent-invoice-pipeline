@@ -1,0 +1,90 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1005",
+      "vendor": "Global Supply Chain Partners",
+      "invoice_date": "2026-01-18",
+      "due_date": "2026-03-18",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 14.0,
+          "unit_price": 250.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 8.0,
+          "unit_price": 750.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 10.0,
+          "unit_price": 500.0,
+          "stated_amount": null,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 14500.0,
+      "stated_tax_rate": 0.05,
+      "stated_tax_amount": 725.0,
+      "stated_shipping": null,
+      "stated_total": 15225.0,
+      "payment_terms": "Net 60",
+      "revision": null,
+      "risk_signals": [
+        {
+          "description": "Vendor address is the White House, which is suspicious sender details for a commercial supplier.",
+          "quote": "1600 Pennsylvania Ave, Washington, DC 20500"
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact match for WidgetA; stock 15 covers quantity 14."
+        },
+        {
+          "line": 2,
+          "sku": "GadgetX",
+          "note": "Exact match for GadgetX; stock 5 is short of quantity 8."
+        },
+        {
+          "line": 3,
+          "sku": "WidgetB",
+          "note": "Exact match for WidgetB; stock 10 covers quantity 10."
+        }
+      ],
+      "summary": "All three lines match catalog items exactly. WidgetA and WidgetB have sufficient stock; GadgetX does not (5 on hand vs 8 requested)."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "reject",
+      "rationale": "Fixed outcome is reject: error-level stock shortfall. GadgetX is billed at 8 × $750.00 = $6,000.00, but catalog stock is 5 (lookup confirms stock 5, unit price $750.00). WidgetA (14 × $250.00) and WidgetB (10 × $500.00) match catalog prices and have stock (15 and 10). Currency is USD; invoice history for INV-1005 has no prior runs, so no number conflict or revision. Total $15,225.00 exceeds $10,000.00, but the blocking issue is the stock error. The White House address warning is uncorroborated (no payment-redirect request; no other vendor on this number) and does not change the reject.",
+      "checklist_responses": [
+        "Error finding: GadgetX 8 requested vs 5 in stock (lookup stock 5). Policy requires reject.",
+        "Currency: USD, so the non-USD review trigger does not apply.",
+        "Prices: WidgetA $250.00, GadgetX $750.00, and WidgetB $500.00 all match catalog unit prices; none above catalog.",
+        "Invoice history for INV-1005: no earlier runs, so no revised invoice and no invoice-number conflict.",
+        "Total $15,225.00 is over $10,000.00 (strict review). Outcome remains reject because of the error finding.",
+        "Risk warning (vendor address 1600 Pennsylvania Ave): not corroborated by a payment redirect or a conflicting vendor in history; it does not independently block or change the reject."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The reject decision matches the fixed policy outcome and the corroborated GadgetX stock shortfall; checklist facts and the uncorroborated address warning are handled correctly."
+    }
+  ]
+}

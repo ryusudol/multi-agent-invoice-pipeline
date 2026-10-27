@@ -1,0 +1,80 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1003",
+      "vendor": "Fraudster LLC",
+      "invoice_date": "2026-01-20",
+      "due_date": "yesterday",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "FakeItem",
+          "quantity": 100.0,
+          "unit_price": 1000.0,
+          "stated_amount": null,
+          "note": null
+        }
+      ],
+      "stated_subtotal": null,
+      "stated_tax_rate": null,
+      "stated_tax_amount": null,
+      "stated_shipping": null,
+      "stated_total": 100000.0,
+      "payment_terms": "Immediate",
+      "revision": null,
+      "risk_signals": [
+        {
+          "description": "Vendor name suggests the invoice may be fraudulent.",
+          "quote": "Vendor: Fraudster LLC"
+        },
+        {
+          "description": "Due date is not a real date and is before the invoice date.",
+          "quote": "Due Date: yesterday"
+        },
+        {
+          "description": "Payment terms demand immediate payment.",
+          "quote": "Payment Terms: Immediate"
+        },
+        {
+          "description": "Notes pressure immediate payment to avoid penalties and request a wire transfer.",
+          "quote": "URGENT - Pay immediately to avoid penalties!!! Wire transfer preferred."
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "FakeItem",
+          "note": "Exact catalog match for FakeItem; stock is 0 so 100 is not available."
+        }
+      ],
+      "summary": "Line 1 matches catalog item FakeItem. Requested quantity 100 exceeds stock of 0."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "reject",
+      "rationale": "Reject. Fixed outcome and an error-level finding: FakeItem stock is 0 while the invoice requests 100, so the line cannot be fulfilled. Invoice INV-1003 from Fraudster LLC is USD, total $100,000.00 (above the $10,000 strict-review threshold). Catalog unit price was not returned, so no price-above-catalog finding is confirmed. History shows no prior runs for INV-1003. Vendor-name, due-date (“yesterday”), immediate-payment, and wire-transfer warnings are risk signals only and are not the basis for rejection; the out-of-stock error is.",
+      "checklist_responses": [
+        "Error — FakeItem out of stock: lookup shows stock 0; invoice requests 100 × $1,000.00. Error-level finding requires reject.",
+        "Currency USD: no non-USD issue.",
+        "Total $100,000.00 exceeds $10,000 strict-review threshold, but fixed outcome is already reject due to the stock error.",
+        "Catalog price: lookup returned catalog_unit_price null; do not treat price as above catalog.",
+        "Invoice history for INV-1003: no prior runs, so no corroborated invoice-number conflict.",
+        "Warning — vendor name Fraudster LLC: risk signal only; not independently corroborated beyond the name; does not change the reject already required by the stock error.",
+        "Warning — due date “yesterday” is not a real date and is before 2026-01-20: risk signal only; does not change the reject decision.",
+        "Warning — immediate payment terms and urgent wire-transfer notes: risk signals only; no separate payment-redirect instruction corroborated in history; reject stands on the out-of-stock error."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The reject decision matches the fixed policy outcome and the corroborated out-of-stock error, and every finding and checklist claim is supported by the case file."
+    }
+  ]
+}

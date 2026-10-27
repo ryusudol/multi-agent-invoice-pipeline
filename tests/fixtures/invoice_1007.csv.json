@@ -1,0 +1,86 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1007",
+      "vendor": "MegaWidgets Corp",
+      "invoice_date": "01/28/2026",
+      "due_date": "02/28/2026",
+      "currency": null,
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 20.0,
+          "unit_price": 250.0,
+          "stated_amount": 5000.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 15.0,
+          "unit_price": 500.0,
+          "stated_amount": 7500.0,
+          "note": null
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 3.0,
+          "unit_price": 750.0,
+          "stated_amount": 2250.0,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 14750.0,
+      "stated_tax_rate": 0.06,
+      "stated_tax_amount": 885.0,
+      "stated_shipping": null,
+      "stated_total": 15525.0,
+      "payment_terms": null,
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact catalog match; 20 requested but only 15 in stock."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact catalog match; 15 requested but only 10 in stock."
+        },
+        {
+          "line": 3,
+          "sku": "GadgetX",
+          "note": "Exact catalog match; 3 requested and 5 in stock, sufficient."
+        }
+      ],
+      "summary": "All three lines match catalog items WidgetA, WidgetB, and GadgetX at the listed unit prices. Stock is insufficient for WidgetA and WidgetB, and sufficient for GadgetX."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "reject",
+      "rationale": "Reject INV-1007 (MegaWidgets Corp, USD). Fixed outcome is reject: three error-level findings. WidgetA: 20 requested at catalog $250.00 ($5,000.00) but stock is 15. WidgetB: 15 requested at catalog $500.00 ($7,500.00) but stock is 10. GadgetX: 3 × $750.00 = $2,250.00 matches catalog; stock 5 is sufficient. Stated total $15,525.00 understates the computed total $15,635.00 by $110.00 (subtotal $14,750.00; stated tax $885.00). No prior runs for this number. Unit prices are not above catalog. Errors require rejection.",
+      "checklist_responses": [
+        "Errors: WidgetA stock 15 vs 20 requested; WidgetB stock 10 vs 15 requested; total understated by $110.00 ($15,525.00 stated vs $15,635.00 computed). Any error requires reject.",
+        "Currency is USD, so non-USD review does not apply.",
+        "Catalog prices match: WidgetA $250.00, WidgetB $500.00, GadgetX $750.00. None above catalog.",
+        "No evidence this is a revised invoice.",
+        "Invoice history for INV-1007 has no prior runs, so no invoice-number conflict.",
+        "Computed total $15,635.00 exceeds $10,000.00, but error findings already fix the outcome at reject. No separate risk signal (payment redirect or other vendor) is corroborated.",
+        "GadgetX stock (5) covers the quantity of 3; this does not offset the WidgetA and WidgetB shortfalls."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The reject decision matches the fixed policy outcome and every factual claim is corroborated by the case file, catalog stock, and invoice history."
+    }
+  ]
+}

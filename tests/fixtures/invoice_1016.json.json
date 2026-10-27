@@ -1,0 +1,86 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1016",
+      "vendor": "Widgets Inc.",
+      "invoice_date": "2026-01-27",
+      "due_date": "2026-02-27",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 4.0,
+          "unit_price": 250.0,
+          "stated_amount": 1000.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 2.0,
+          "unit_price": 500.0,
+          "stated_amount": 1000.0,
+          "note": null
+        },
+        {
+          "description": "WidgetC",
+          "quantity": 3.0,
+          "unit_price": 350.0,
+          "stated_amount": 1050.0,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 3050.0,
+      "stated_tax_rate": 0.06,
+      "stated_tax_amount": 183.0,
+      "stated_shipping": null,
+      "stated_total": 3233.0,
+      "payment_terms": "Net 30",
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact catalog match; stock 15 covers quantity 4."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact catalog match; stock 10 covers quantity 2."
+        },
+        {
+          "line": 3,
+          "sku": null,
+          "note": "lookup_item found no WidgetC; similar names are not a match."
+        }
+      ],
+      "summary": "WidgetA and WidgetB match the catalog and both requested quantities are in stock. WidgetC is not a catalog item, so its SKU is null."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "reject",
+      "rationale": "Reject per fixed policy: error-level finding that line 3 WidgetC is not in inventory. Catalog confirms WidgetA at $250.00 (stock 15) and WidgetB at $500.00 (stock 10); WidgetC lookup returned found=false. Lines 1–2 match catalog ($1,000.00 + $1,000.00). Stated total $3,233.00 (subtotal $3,050.00 + tax $183.00) is USD and under $10,000. Invoice history for INV-1016 has no prior runs, so no number conflict or payment-redirect signal. The missing SKU alone requires rejection.",
+      "checklist_responses": [
+        "Error finding: WidgetC not in inventory (lookup found=false); policy requires reject.",
+        "Currency USD; no non-USD issue.",
+        "WidgetA $250.00 and WidgetB $500.00 match catalog; WidgetC has no catalog price.",
+        "No revised-invoice flag in the case file.",
+        "INV-1016 history runs empty; no invoice-number conflict.",
+        "Total $3,233.00 is under $10,000.00; no risk signals corroborated.",
+        "Fixed outcome is reject; decision matches that outcome."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The reject decision matches the fixed policy and every factual claim in the rationale is corroborated."
+    }
+  ]
+}

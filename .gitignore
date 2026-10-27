@@ -1,0 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+/build/
+/dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Runtime artifacts (recreated on each run)
+*.db
+*.db-wal
+*.db-shm
+runs/
+outbox/
+logs/
+*.log
+
+# Frontend (web/dist is committed on purpose so the dashboard runs without Node)
+node_modules/
+*.tsbuildinfo
+web/.vite/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Claude Code local settings
+.claude/settings.local.json

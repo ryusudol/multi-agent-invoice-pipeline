@@ -1,0 +1,80 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-2001",
+      "vendor": "Northwind Industrial Supply",
+      "invoice_date": "2026-02-03",
+      "due_date": "2026-03-05",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 15.0,
+          "unit_price": 250.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 10.0,
+          "unit_price": 500.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 5.0,
+          "unit_price": 750.0,
+          "stated_amount": null,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 12500.0,
+      "stated_tax_rate": 0.0,
+      "stated_tax_amount": 0.0,
+      "stated_shipping": null,
+      "stated_total": 12500.0,
+      "payment_terms": "Net 30",
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact catalog match; stock 15 covers quantity 15."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact catalog match; stock 10 covers quantity 10."
+        },
+        {
+          "line": 3,
+          "sku": "GadgetX",
+          "note": "Exact catalog match; stock 5 covers quantity 5."
+        }
+      ],
+      "summary": "All three lines match catalog items WidgetA, WidgetB, and GadgetX exactly. Stock is sufficient for each requested quantity."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "approve",
+      "rationale": "Approve INV-2001 (Northwind Industrial Supply, USD) for $12,500.00. Strict review applies because the total exceeds $10,000.00. No error findings. Catalog checks: WidgetA 15 × $250.00 matches catalog $250.00 (stock 15); WidgetB 10 × $500.00 matches $500.00 (stock 10); GadgetX 5 × $750.00 matches $750.00 (stock 5). Line totals $3,750.00 + $5,000.00 + $3,750.00 equal the stated subtotal and total; tax is $0.00. Prices are not above catalog. History for INV-2001 has no prior runs, so no number conflict or revision. No risk signals.",
+      "checklist_responses": [
+        "Total over $10,000.00: confirmed all three lines against catalog and stock. WidgetA 15 × $250.00 equals catalog $250.00, stock 15 sufficient. WidgetB 10 × $500.00 equals catalog $500.00, stock 10 sufficient. GadgetX 5 × $750.00 equals catalog $750.00, stock 5 sufficient. Extended amounts $3,750.00, $5,000.00, and $3,750.00 sum to the invoice total of $12,500.00."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The approval is supported: catalog prices, quantities, stock, totals, and empty history all match, and the strict over-$10,000 checklist is fully addressed."
+    }
+  ]
+}

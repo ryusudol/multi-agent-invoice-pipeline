@@ -1,0 +1,75 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1011",
+      "vendor": "Summit Manufacturing Co.",
+      "invoice_date": "2026-01-20",
+      "due_date": "2026-02-20",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 6.0,
+          "unit_price": 250.0,
+          "stated_amount": 1500.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 3.0,
+          "unit_price": 500.0,
+          "stated_amount": 1500.0,
+          "note": null
+        }
+      ],
+      "stated_subtotal": null,
+      "stated_tax_rate": null,
+      "stated_tax_amount": null,
+      "stated_shipping": null,
+      "stated_total": 3000.0,
+      "payment_terms": null,
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact catalog match for WidgetA; stock 15 covers quantity 6."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact catalog match for WidgetB; stock 10 covers quantity 3."
+        }
+      ],
+      "summary": "Both lines match catalog items WidgetA and WidgetB exactly. Requested quantities are in stock."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "approve",
+      "rationale": "Approve INV-1011 from Summit Manufacturing Co. for $3,000.00 USD. WidgetA is 6 × $250.00 = $1,500.00, matching catalog $250.00 with stock 15. WidgetB is 3 × $500.00 = $1,500.00, matching catalog $500.00 with stock 10. Subtotal and total are $3,000.00, under the $10,000 strict-review threshold. Currency is USD. No findings, no prior runs for INV-1011, and no risk signals. No concrete problem in the evidence.",
+      "checklist_responses": [
+        "Error-level findings: none listed; nothing to reject on.",
+        "Currency: USD, so no non-USD human review trigger.",
+        "Price vs catalog: WidgetA $250.00 equals catalog $250.00; WidgetB $500.00 equals catalog $500.00; neither is above catalog.",
+        "Revised invoice: document is not marked revised.",
+        "Invoice-number conflict: get_invoice_history for INV-1011 returned no prior runs or payments.",
+        "Total: $3,000.00 is not over $10,000.00; strict review does not apply.",
+        "Risk signals: none stated; nothing to corroborate or escalate.",
+        "Stock: WidgetA stock 15 covers qty 6; WidgetB stock 10 covers qty 3, consistent with validation."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The approval is consistent with the case file, catalog and stock checks, invoice history, and standard-mode policy."
+    }
+  ]
+}

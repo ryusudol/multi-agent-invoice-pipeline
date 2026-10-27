@@ -1,0 +1,42 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV 1012",
+      "vendor": "QuickShip Distributers (formerly FastShip Ltd.)",
+      "invoice_date": "26-Jan-2026",
+      "due_date": "25-Feb-2026",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Widget A",
+          "quantity": 12.0,
+          "unit_price": 250.0,
+          "stated_amount": 3000.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 7.0,
+          "unit_price": 500.0,
+          "stated_amount": 3500.0,
+          "note": null
+        },
+        {
+          "description": "Gadget X",
+          "quantity": 4.0,
+          "unit_price": 750.0,
+          "stated_amount": 3000.0,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 9500.0,
+      "stated_tax_rate": 0.05,
+      "stated_tax_amount": 475.0,
+      "stated_shipping": null,
+      "stated_total": 9975.0,
+      "payment_terms": "Net 30",
+      "revision": null,
+      "risk_signals": []
+    }
+  ]
+}

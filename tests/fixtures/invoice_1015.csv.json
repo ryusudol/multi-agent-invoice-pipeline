@@ -1,0 +1,86 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1015",
+      "vendor": "Reliable Components Inc.",
+      "invoice_date": "2026-01-29",
+      "due_date": "2026-02-28",
+      "currency": null,
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 10.0,
+          "unit_price": 250.0,
+          "stated_amount": 2500.0,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 5.0,
+          "unit_price": 500.0,
+          "stated_amount": 2500.0,
+          "note": null
+        },
+        {
+          "description": "GadgetX",
+          "quantity": 2.0,
+          "unit_price": 750.0,
+          "stated_amount": 1500.0,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 6500.0,
+      "stated_tax_rate": 0.0,
+      "stated_tax_amount": 0.0,
+      "stated_shipping": null,
+      "stated_total": 6500.0,
+      "payment_terms": null,
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact match for WidgetA; stock 15 covers quantity 10."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact match for WidgetB; stock 10 covers quantity 5."
+        },
+        {
+          "line": 3,
+          "sku": "GadgetX",
+          "note": "Exact match for GadgetX; stock 5 covers quantity 2."
+        }
+      ],
+      "summary": "All three invoice lines match catalog items WidgetA, WidgetB, and GadgetX. Requested quantities are within available stock for each item."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "approve",
+      "rationale": "Approve INV-1015 (Reliable Components Inc.), USD, total $6,500.00. No error findings. History has no prior runs, so no number conflict or revision. WidgetA 10 × $250.00 equals catalog $250.00 (stock 15); WidgetB 5 × $500.00 equals catalog $500.00 (stock 10); GadgetX 2 × $750.00 equals catalog $750.00 (stock 5). Subtotal $6,500.00, tax $0.00, and total $6,500.00 reconcile and are under $10,000. No risk signals. Standard policy: approve.",
+      "checklist_responses": [
+        "Error-level findings: none in the case file; no reject trigger.",
+        "Currency: USD, so no non-USD human-review trigger.",
+        "Prices vs catalog: WidgetA $250.00, WidgetB $500.00, and GadgetX $750.00 all match catalog unit prices; none above catalog.",
+        "Revised invoice / number conflict: get_invoice_history for INV-1015 returned no prior runs.",
+        "Total: $6,500.00 is under the $10,000.00 strict-review threshold.",
+        "Risk signals: none stated; nothing to corroborate or escalate.",
+        "Stock: quantities 10, 5, and 2 are within stock 15, 10, and 5; amounts reconcile to $6,500.00."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The approval is consistent with the case file, catalog prices, stock, invoice history, and standard policy."
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "intake": [
+    {
+      "invoice_number": "INV-1006",
+      "vendor": "Acme Industrial Supplies",
+      "invoice_date": "2026-01-25",
+      "due_date": "2026-02-10",
+      "currency": null,
+      "line_items": [
+        {
+          "description": "WidgetA",
+          "quantity": 5.0,
+          "unit_price": 250.0,
+          "stated_amount": null,
+          "note": null
+        },
+        {
+          "description": "WidgetB",
+          "quantity": 3.0,
+          "unit_price": 500.0,
+          "stated_amount": null,
+          "note": null
+        }
+      ],
+      "stated_subtotal": 2750.0,
+      "stated_tax_rate": null,
+      "stated_tax_amount": 0.0,
+      "stated_shipping": null,
+      "stated_total": 2750.0,
+      "payment_terms": "Net 15",
+      "revision": null,
+      "risk_signals": []
+    }
+  ],
+  "validation": [
+    {
+      "lines": [
+        {
+          "line": 1,
+          "sku": "WidgetA",
+          "note": "Exact match for WidgetA; stock 15 covers quantity 5."
+        },
+        {
+          "line": 2,
+          "sku": "WidgetB",
+          "note": "Exact match for WidgetB; stock 10 covers quantity 3."
+        }
+      ],
+      "summary": "Both invoice lines match catalog items WidgetA and WidgetB exactly. Requested quantities are in stock for both items."
+    }
+  ],
+  "vp": [
+    {
+      "decision": "approve",
+      "rationale": "Approve INV-1006 from Acme Industrial Supplies, dated 2026-01-25, due 2026-02-10. USD total $2,750.00 matches subtotal (tax $0.00). WidgetA 5 × $250.00 = $1,250.00 equals catalog $250.00; stock 15 covers qty 5. WidgetB 3 × $500.00 = $1,500.00 equals catalog $500.00; stock 10 covers qty 3. No findings, no prior runs for INV-1006, total under $10,000.00, and no risk signals. Standard mode: all checks passed.",
+      "checklist_responses": [
+        "Error-level findings: none; do not reject.",
+        "Currency USD; not a non-USD needs_review trigger.",
+        "Prices match catalog (WidgetA $250.00, WidgetB $500.00); not above catalog.",
+        "Not a revised invoice; history for INV-1006 has no runs, so no number conflict.",
+        "Total $2,750.00 is under $10,000.00; no risk signals to escalate.",
+        "Validation and lookups confirm catalog match and stock (15 and 10); no concrete problem."
+      ]
+    }
+  ],
+  "critic": [
+    {
+      "agrees": true,
+      "issues": [],
+      "summary": "The approval is consistent with the invoice, catalog, stock, history, and standard-mode policy."
+    }
+  ]
+}
