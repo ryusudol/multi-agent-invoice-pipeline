@@ -116,6 +116,15 @@ def test_extraction_gives_up_after_retry_cap_and_batch_continues(scripted):
     assert run_pipeline(INVOICES / "invoice_1001.txt").status == RunStatus.PAID
 
 
+def test_invalid_vp_output_fails_without_blaming_extraction(scripted):
+    bad = {**vp(), "decision": "maybe"}
+    scripted.load({"intake": [intake()], "validation": [matching("WidgetA", "WidgetB")], "vp": [bad, bad]})
+    state = run_pipeline(INVOICES / "invoice_1001.txt")
+    assert state.status == RunStatus.FAILED
+    assert state.error.startswith("The approval agent kept returning invalid output")
+    assert "xtraction" not in state.error
+
+
 def test_llm_cannot_approve_a_policy_rejection(scripted):
     scripted.load({"intake": [INTAKE_1002], "validation": [matching("GadgetX")], "vp": [vp("approve")], "critic": [AGREE]})
     state = run_pipeline(INVOICES / "invoice_1002.txt")

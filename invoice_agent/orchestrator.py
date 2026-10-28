@@ -328,9 +328,11 @@ HANDLERS: dict[Stage, Callable[[RunState, EventSink], tuple[str, str]]] = {
 }
 
 
-def _describe_error(exc: Exception) -> str:
+def _describe_error(exc: Exception, stage: Stage) -> str:
     if isinstance(exc, UnexpectedModelBehavior) and "output retries" in str(exc):
-        return f"Extraction still failed its checks after {config.EXTRACTION_RETRIES} retries"
+        if stage == Stage.EXTRACT:
+            return f"Extraction still failed its checks after {config.EXTRACTION_RETRIES} retries"
+        return f"The {stage} agent kept returning invalid output: {exc}"
     if isinstance(exc, ModelAPIError):
         return f"Grok API error: {exc}"
     return f"{type(exc).__name__}: {exc}"
@@ -353,7 +355,7 @@ def _drive(state: RunState, stage: Stage, sink: EventSink) -> RunState:
         except Exception as exc:
             log.exception("stage %s failed for run %s", stage, state.run_id)
             condition, next_stage = "error", Stage.FAILED
-            state.error = _describe_error(exc)
+            state.error = _describe_error(exc, stage)
             sink.emit(stage, EventType.ERROR, state.error, exception=type(exc).__name__)
         except BaseException:
             # Ctrl-C: don't leave a half-finished 'processing' run behind to block reprocessing.
