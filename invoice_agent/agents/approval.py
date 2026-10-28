@@ -4,6 +4,8 @@ The policy gate fixes or limits the outcome before either agent runs. Code enfor
 every draft, so the LLM can make an outcome stricter (escalate to a human) but never looser.
 """
 
+from typing import Literal
+
 from pydantic_ai import Agent
 
 from invoice_agent import config
@@ -180,12 +182,13 @@ def decide(invoice: Invoice, report: ValidationReport, policy: PolicyResult, dep
         )
         if agreed or rounds == max_rounds:
             break
-        issues = "\n".join(f"  - {issue}" for issue in critique.issues)
-        revise = f"{case}\n\nYOUR PREVIOUS DRAFT\n{_draft_text(draft)}\n\nAUDITOR'S ISSUES\n{issues}\n\nRevise your draft."
+        issue_text = "\n".join(f"  - {issue}" for issue in critique.issues)
+        revise = f"{case}\n\nYOUR PREVIOUS DRAFT\n{_draft_text(draft)}\n\nAUDITOR'S ISSUES\n{issue_text}\n\nRevise your draft."
         draft = _enforce(run_agent(vp_agent, revise, deps, usage), policy, deps)
 
     issues = [] if agreed or critique is None else critique.issues
     fixed = policy.fixed_outcome
+    decided_by: Literal["policy", "vp_critic"]
     if fixed is not None:
         outcome, decided_by, reasons = fixed, "policy", policy.reasons
     elif agreed:
