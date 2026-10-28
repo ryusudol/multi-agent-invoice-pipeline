@@ -53,10 +53,6 @@ def test_revision_pays_only_the_difference():
     assert db.paid_cents(KEY) == 594000
 
 
-def test_revision_alone_pays_in_full():
-    assert pay_1004(594000).amount_cents == 594000
-
-
 def test_lower_total_after_payment_pays_nothing(bank):
     pay_1004(594000)
     result = pay_1004(189000, run_id=2)

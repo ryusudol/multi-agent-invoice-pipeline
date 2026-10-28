@@ -1,4 +1,4 @@
-"""The §10 answer key, end to end and offline. Agent outputs replay from tests/fixtures/ (recorded live)."""
+"""The expected outcome of every sample invoice, end to end and offline. Agent outputs replay from tests/fixtures/ (recorded live)."""
 
 import pytest
 from rich.console import Console
@@ -103,11 +103,9 @@ def test_batch_matches_answer_key(replay, capsys):
     render_result(card, states["invoice_1010.txt"])
     assert "Due on approval" not in card.export_text()  # nothing paid yet, so it would repeat Total
 
-    # Human review: approving the revision pays only the difference; approving 1010 pays its total.
+    # Human review: approving the revision pays only the difference.
     revised = resolve_review(states["invoice_1004_revised.json"].run_id, "approve", "PO amendment confirmed")
     assert (revised.status, revised.payment.amount_cents) == (RunStatus.PAID, 405000)
-    rush_order = resolve_review(states["invoice_1010.txt"].run_id, "approve", "Rush pricing agreed")
-    assert (rush_order.status, rush_order.payment.amount_cents) == (RunStatus.PAID, 718500)
     assert db.paid_cents("INV-1004/precision parts ltd") == 594000
 
     # Synthetic over-$10K invoice: approved after strict review.

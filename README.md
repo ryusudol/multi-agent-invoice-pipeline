@@ -1,4 +1,4 @@
-# Acme Invoice Agent
+# Multi-Agent Invoice Pipeline
 
 Grok agents read each invoice, match it against the inventory database, and draft a VP decision that a critic agent audits. Code enforces the approval policy and then pays or rejects. You can run it from the CLI or from a local web dashboard.
 

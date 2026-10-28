@@ -17,7 +17,7 @@ SUPPORTED_SUFFIXES = (".txt", ".json", ".csv", ".xml", ".pdf")
 XAI_MODEL = os.getenv("XAI_MODEL") or "grok-4.7"
 AGENT_TIMEOUT_SECONDS = 180
 
-# README: "invoices over $10K require additional scrutiny".
+# Invoices over $10K get strict review.
 STRICT_REVIEW_THRESHOLD_CENTS = 10_000_00
 # Stated vs computed amounts may differ by at most this much (rounding).
 MONEY_TOLERANCE_CENTS = 1

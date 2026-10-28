@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS payments_key ON payments (invoice_key);
 """
 
-# Stock from the README seed; unit prices added for the price check (FakeItem has none).
+# Starter stock; unit prices added for the price check (FakeItem has none).
 INVENTORY_SEED = [
     ("WidgetA", 15, 250.0),
     ("WidgetB", 10, 500.0),

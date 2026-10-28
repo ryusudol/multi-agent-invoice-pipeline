@@ -10,8 +10,8 @@ from invoice_agent.models import PaymentResult
 
 
 def mock_payment(vendor: str, amount: float, currency: str = "USD", idempotency_key: str | None = None) -> dict:
-    """The README's mock banking API, plus currency and an idempotency key. It doesn't print like the
-    README's; the Payment stage line reports each payment."""
+    """A mock banking API that takes a currency and an idempotency key. It doesn't print; the Payment
+    stage line reports each payment."""
     return {"status": "success", "currency": currency, "idempotency_key": idempotency_key}
 
 
