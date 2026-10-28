@@ -11,6 +11,14 @@ class UnsupportedFileError(ValueError):
     pass
 
 
+def is_invoice(path: Path) -> bool:
+    return path.is_file() and path.suffix.lower() in config.SUPPORTED_SUFFIXES
+
+
+def invoice_files(folder: Path) -> list[Path]:
+    return sorted(p for p in folder.iterdir() if is_invoice(p))
+
+
 def load_text(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix not in config.SUPPORTED_SUFFIXES:

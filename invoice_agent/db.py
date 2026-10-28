@@ -79,7 +79,7 @@ INVENTORY_SEED = [
 ]
 
 RUN_COLUMNS = {
-    "status", "stage", "invoice_number", "vendor", "invoice_key", "fingerprint", "total_cents", "currency",
+    "source_text", "status", "stage", "invoice_number", "vendor", "invoice_key", "fingerprint", "total_cents", "currency",
     "extraction_json", "duplicate_json", "validation_json", "policy_json", "decision_json", "payment_json",
     "usage_json", "error", "finished_at", "duration_ms",
 }  # fmt: skip
@@ -122,14 +122,14 @@ def load_inventory() -> dict[str, sqlite3.Row]:
 def create_run(source_file: str, started_at: str) -> int:
     with transaction() as conn:
         cur = conn.execute(
-            "INSERT INTO runs (source_file, status, stage, started_at) VALUES (?, 'processing', 'load', ?)",
+            "INSERT INTO runs (source_file, status, stage, started_at) VALUES (?, 'processing', 'queued', ?)",
             (source_file, started_at),
         )
         return int(cur.lastrowid or 0)
 
 
 def update_run(run_id: int, **fields: Any) -> None:
-    unknown = set(fields) - RUN_COLUMNS - {"source_text"}
+    unknown = set(fields) - RUN_COLUMNS
     if unknown:
         raise ValueError(f"unknown run columns: {unknown}")
     assignments = ", ".join(f"{name} = ?" for name in fields)
@@ -157,6 +157,27 @@ def list_runs(status: str | None = None) -> list[sqlite3.Row]:
         if status is None:
             return conn.execute("SELECT * FROM runs ORDER BY id DESC").fetchall()
         return conn.execute("SELECT * FROM runs WHERE status = ? ORDER BY id DESC", (status,)).fetchall()
+
+
+def source_files() -> set[str]:
+    with transaction() as conn:
+        return {row[0] for row in conn.execute("SELECT DISTINCT source_file FROM runs")}
+
+
+def status_counts() -> dict[str, int]:
+    with transaction() as conn:
+        return dict(conn.execute("SELECT status, COUNT(*) FROM runs GROUP BY status").fetchall())
+
+
+def finding_counts() -> dict[str, int]:
+    """Runs with at least one finding of each code."""
+    with transaction() as conn:
+        return dict(
+            conn.execute(
+                "SELECT json_extract(f.value, '$.code'), COUNT(DISTINCT runs.id) "
+                "FROM runs, json_each(runs.validation_json, '$.findings') AS f GROUP BY 1"
+            ).fetchall()
+        )
 
 
 def earlier_runs(invoice_number: str, before_run_id: int) -> list[sqlite3.Row]:

@@ -110,14 +110,12 @@ def case_file(invoice: Invoice, report: ValidationReport, policy: PolicyResult) 
             f" = {format_money(amount, currency)} ({match})"
         )
     findings = [f"  - [{f.severity}] {f.message}" for f in report.findings] or ["  (none)"]
-    fixed = policy.fixed_outcome
-    allowed = (
-        f"fixed outcome: {fixed}"
-        if fixed
-        else "approve, reject, or needs_review"
-        if policy.mode == PolicyMode.STRICT
-        else "approve, or needs_review if you find a concrete problem"
-    )
+    if policy.fixed_outcome:
+        allowed = f"fixed outcome: {policy.fixed_outcome}"
+    elif policy.mode == PolicyMode.STRICT:
+        allowed = "approve, reject, or needs_review"
+    else:
+        allowed = "approve, or needs_review if you find a concrete problem"
     parts = [
         "INVOICE (as stated on the document)",
         f"  Number: {invoice.invoice_number}   Vendor: {invoice.vendor}   Date: {invoice.invoice_date}"

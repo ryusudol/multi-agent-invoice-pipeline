@@ -36,22 +36,30 @@ export default function App() {
     refetchInterval: (q) => (q.state.data?.some((r) => r.status === "processing") ? FAST : SLOW),
   });
   const busy = runs.data?.some((r) => r.status === "processing") ?? false;
-  const metrics = useQuery({ queryKey: ["metrics"], queryFn: api.metrics, refetchInterval: busy ? FAST : SLOW });
+  const metrics = useQuery({ queryKey: ["metrics"], queryFn: api.metrics, enabled: selected === null, refetchInterval: busy ? FAST : SLOW });
   const detail = useQuery({
     queryKey: ["invoice", selected],
     queryFn: () => api.invoice(selected!),
     enabled: selected !== null,
     retry: false,
-    refetchInterval: (q) => (q.state.data?.status === "processing" ? FAST : SLOW),
+    // Finished runs never change; a review can still be resolved from the CLI.
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
+      return status === "processing" ? FAST : status === "needs_review" ? SLOW : false;
+    },
   });
 
   return (
     <div className="mx-auto flex max-w-[1800px] flex-col md:h-dvh">
       <header className="flex items-center justify-between gap-4 border-b border-line px-5 py-4 sm:px-8">
-        <button onClick={() => select(null)} className="flex items-baseline gap-4 text-left">
+        <a
+          href="/"
+          onClick={(e) => { e.preventDefault(); select(null); }}
+          className="flex items-baseline gap-4 transition-opacity hover:opacity-70"
+        >
           <h1 className="text-lg font-semibold tracking-[0.35em] uppercase">Acme</h1>
           <span className="eyebrow max-sm:hidden">Invoice operations</span>
-        </button>
+        </a>
         {runs.error && <p className="eyebrow text-bad-ink">Can't reach the API: {runs.error.message}</p>}
       </header>
       <main className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] md:grid-cols-[24rem_minmax(0,1fr)]">

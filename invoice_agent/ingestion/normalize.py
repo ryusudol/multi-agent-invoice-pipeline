@@ -50,10 +50,15 @@ def to_decimal(value: float) -> Decimal:
     return Decimal(str(value))
 
 
+def round_cents(amount: Decimal) -> int:
+    """Half-up to a whole number of cents."""
+    return int(amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
 def cents(value: float | None) -> int | None:
     if value is None:
         return None
-    return int((to_decimal(value) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return round_cents(to_decimal(value) * 100)
 
 
 def split_parenthetical(text: str) -> tuple[str, str | None]:

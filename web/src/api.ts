@@ -21,7 +21,6 @@ export interface RunSummary {
   stage: string;
   headline: string;
   started_at: string;
-  finished_at: string | null;
   duration_ms: number;
 }
 
@@ -80,10 +79,10 @@ export interface Payment {
 export interface RunState {
   source_text: string | null;
   invoice: Invoice | null;
-  identity: { number: string; vendor: string; key: string } | null;
-  duplicate: { kind: string; earlier_run_id: number | null; earlier_status: string | null; earlier_file: string | null; message: string } | null;
+  identity: { number: string; key: string } | null;
+  duplicate: { kind: string; earlier_run_id: number | null; earlier_status: RunStatus | null; earlier_file: string | null; message: string } | null;
   validation: {
-    lines: { line: number; description: string; sku: string | null; note: string | null }[];
+    lines: { line: number; description: string; sku: string | null }[];
     findings: Finding[];
     computed: { line_amounts_cents: (number | null)[]; subtotal_cents: number | null; tax_cents: number | null };
     agent_summary: string;

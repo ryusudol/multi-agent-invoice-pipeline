@@ -23,6 +23,7 @@ from invoice_agent.models import DuplicateVerdict, Finding, FindingCode, Invoice
 from invoice_agent.validation.rules import compute_totals
 
 LineKey = tuple[str, str, int | None]  # (item, quantity, unit price cents)
+Row = Mapping[str, Any] | sqlite3.Row
 
 
 def _line_keys(invoice: Invoice) -> list[LineKey]:
@@ -55,7 +56,7 @@ def identify(invoice: Invoice) -> InvoiceIdentity | None:
         return None
     vendor = normalize_vendor(invoice.vendor) or ""
     digest = hashlib.sha256(json.dumps(_core(invoice), sort_keys=True).encode()).hexdigest()
-    return InvoiceIdentity(number=number, vendor=vendor, key=f"{number}/{vendor}", fingerprint=digest[:16])
+    return InvoiceIdentity(number=number, key=f"{number}/{vendor}", fingerprint=digest[:16])
 
 
 def _describe(line: LineKey, names: Mapping[str, str]) -> str:
@@ -72,7 +73,7 @@ def line_diff(earlier: Invoice, current: Invoice) -> tuple[list[str], list[str]]
     return added, removed
 
 
-def _file(row: "Row") -> str:
+def _file(row: Row) -> str:
     return Path(row["source_file"]).name
 
 
@@ -84,10 +85,18 @@ EARLIER_STATUS = {
 }
 
 
+def _earlier_status(row: Row) -> str:
+    return EARLIER_STATUS.get(row["status"], f"is {row['status']}")
+
+
+def _earlier(row: Row) -> dict[str, Any]:
+    """The DuplicateVerdict fields that point at the earlier run."""
+    return {"earlier_run_id": row["id"], "earlier_status": row["status"], "earlier_file": _file(row)}
+
+
 def _revision_message(number: str, row: Row, before: int, after: int, added: list[str], removed: list[str], currency: str) -> str:
     """'Revision of INV-1004. The earlier version, invoice_1004.json ($1,890.00), was paid. This version adds 5 × GadgetX
     @ $750.00, so the total rises by $4,050.00 to $5,940.00.'"""
-    status = EARLIER_STATUS.get(row["status"], f"is {row['status']}")
     changes = []
     if added:
         changes.append("adds " + ", ".join(added))
@@ -102,12 +111,9 @@ def _revision_message(number: str, row: Row, before: int, after: int, added: lis
     else:
         total = f"the total stays at {format_money(after, currency)}"
     return (
-        f"Revision of {number}. The earlier version, {_file(row)} ({format_money(before, currency)}), {status}. "
+        f"Revision of {number}. The earlier version, {_file(row)} ({format_money(before, currency)}), {_earlier_status(row)}. "
         f"This version {what}, so {total}."
     )
-
-
-Row = Mapping[str, Any] | sqlite3.Row
 
 
 def compare(
@@ -127,11 +133,7 @@ def compare(
     for row in same_key:
         if row["fingerprint"] == identity.fingerprint:
             return DuplicateVerdict(
-                kind="identical",
-                earlier_run_id=row["id"],
-                earlier_status=row["status"],
-                earlier_file=_file(row),
-                message=f"Same invoice as {_file(row)}, which {EARLIER_STATUS.get(row['status'], 'is ' + row['status'])}",
+                kind="identical", message=f"Same invoice as {_file(row)}, which {_earlier_status(row)}", **_earlier(row)
             )
 
     if same_key:
@@ -145,10 +147,8 @@ def compare(
         message = _revision_message(identity.number, row, before_total, after_total, added, removed, currency)
         return DuplicateVerdict(
             kind="revised",
-            earlier_run_id=row["id"],
-            earlier_status=row["status"],
-            earlier_file=_file(row),
             message=message,
+            **_earlier(row),
             findings=[
                 Finding(
                     code=FindingCode.REVISED_INVOICE,
@@ -171,10 +171,8 @@ def compare(
     )
     return DuplicateVerdict(
         kind="vendor_conflict",
-        earlier_run_id=row["id"],
-        earlier_status=row["status"],
-        earlier_file=_file(row),
         message=message,
+        **_earlier(row),
         findings=[
             Finding(
                 code=FindingCode.VENDOR_CONFLICT,

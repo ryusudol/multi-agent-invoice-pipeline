@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { RunDetail } from "../api";
-import { clock } from "./ui";
+import { STATUS_LABEL, type RunDetail } from "../api";
+import { clock, STATUS_TONE } from "./ui";
 
 type NodeState = "done" | "current" | "pending" | "skipped" | "error";
 
@@ -13,15 +13,8 @@ const TRACK = [
   { stage: "approval", label: "Approval" },
 ];
 
-// The last segment names how the run ended.
-const FINAL: Record<string, { label: string; bar: string }> = {
-  paid: { label: "Paid", bar: "bg-good" },
-  rejected: { label: "Rejected", bar: "bg-bad" },
-  needs_review: { label: "Review", bar: "bg-warn" },
-  duplicate: { label: "Duplicate", bar: "bg-neutral" },
-  failed: { label: "Failed", bar: "bg-serious" },
-  processing: { label: "Settle", bar: "" },
-};
+// The last segment names how the run ended; these two need shorter labels than the status tag.
+const FINAL_LABEL: Partial<Record<RunDetail["status"], string>> = { needs_review: "Review", processing: "Settle" };
 
 const BAR: Record<NodeState, string> = {
   done: "bg-ink",
@@ -37,21 +30,15 @@ export function StageTrack({ run, queued }: { run: RunDetail; queued: boolean })
   const failedAt = run.events.find((e) => e.type === "error")?.stage;
   const ended = run.status !== "processing";
 
-  const nodes: { label: string; state: NodeState }[] = TRACK.map(({ stage, label }) => ({
-    label,
-    state: completed.has(stage)
-      ? "done"
-      : stage === failedAt
-        ? "error"
-        : !ended && !queued && run.stage === stage
-          ? "current"
-          : ended
-            ? "skipped"
-            : "pending",
-  }));
+  const nodeState = (stage: string): NodeState => {
+    if (completed.has(stage)) return "done";
+    if (stage === failedAt) return "error";
+    if (ended) return "skipped";
+    return run.stage === stage ? "current" : "pending";
+  };
+  const nodes = TRACK.map(({ stage, label }) => ({ label, state: nodeState(stage) }));
   const settling = !ended && (run.stage === "payment" || run.stage === "rejection");
-  const final = FINAL[run.status];
-  nodes.push({ label: final.label, state: ended ? "done" : settling ? "current" : "pending" });
+  nodes.push({ label: FINAL_LABEL[run.status] ?? STATUS_LABEL[run.status], state: ended ? "done" : settling ? "current" : "pending" });
 
   return (
     <div className="flex items-start gap-6">
@@ -61,7 +48,7 @@ export function StageTrack({ run, queued }: { run: RunDetail; queued: boolean })
           const lit = node.state === "done" || node.state === "current";
           return (
             <li key={node.label} className="min-w-0 flex-1" aria-current={node.state === "current" ? "step" : undefined}>
-              <span className={`block h-0.5 ${last && ended ? final.bar : BAR[node.state]}`} />
+              <span className={`block h-0.5 ${last && ended ? STATUS_TONE[run.status].dot : BAR[node.state]}`} />
               <span
                 className={`mt-2.5 block truncate pl-[0.18em] text-center text-[10px] font-medium tracking-[0.18em] uppercase ${lit ? "text-ink" : node.state === "error" ? "text-serious-ink" : "text-faint"} ${node.state === "current" || last ? "" : "max-sm:invisible"}`}
               >

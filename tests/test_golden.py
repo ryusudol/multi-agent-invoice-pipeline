@@ -5,6 +5,7 @@ from rich.console import Console
 
 from invoice_agent import config, db
 from invoice_agent.console import render_result
+from invoice_agent.ingestion.loader import invoice_files
 from invoice_agent.models import FindingCode, PolicyMode, RunStatus
 from invoice_agent.orchestrator import resolve_review, run_pipeline
 
@@ -41,7 +42,7 @@ POLICY_FIXED = {name for name, (status, _, _) in ANSWER_KEY.items() if status in
 
 
 def sample_files():
-    return sorted(p for p in INVOICES.iterdir() if p.suffix in config.SUPPORTED_SUFFIXES)
+    return invoice_files(INVOICES)
 
 
 @pytest.fixture

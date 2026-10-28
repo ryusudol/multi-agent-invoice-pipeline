@@ -4,7 +4,7 @@ import difflib
 import sqlite3
 from collections import defaultdict
 from collections.abc import Mapping
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from typing import Any
 
 from invoice_agent import config
@@ -13,6 +13,7 @@ from invoice_agent.ingestion.normalize import (
     format_money,
     item_key,
     normalize_currency,
+    round_cents,
     split_parenthetical,
     to_decimal,
 )
@@ -21,17 +22,17 @@ from invoice_agent.models import ComputedTotals, Finding, FindingCode, Invoice, 
 Catalog = Mapping[str, Mapping[str, Any] | sqlite3.Row]  # sku -> {"stock", "unit_price"}
 
 
-def catalog_match(description: str, catalog: Catalog) -> tuple[str | None, str | None]:
+def catalog_match(description: str, catalog: Catalog) -> str | None:
     """Exact match after removing spaces, then again after stripping a trailing parenthetical.
 
-    Returns (sku or None, stripped note). Similar names never match: WidgetC stays unknown.
+    Similar names never match: WidgetC stays unknown.
     """
     if item_key(description) in catalog:
-        return item_key(description), None
+        return item_key(description)
     name, note = split_parenthetical(description)
     if note and item_key(name) in catalog:
-        return item_key(name), note
-    return None, note
+        return item_key(name)
+    return None
 
 
 def suggest(description: str, catalog: Catalog) -> list[str]:
@@ -41,17 +42,20 @@ def suggest(description: str, catalog: Catalog) -> list[str]:
 
 
 def match_lines(invoice: Invoice, catalog: Catalog) -> list[LineCheck]:
-    checks = []
-    for n, item in enumerate(invoice.line_items, start=1):
-        sku, note = catalog_match(item.description, catalog)
-        checks.append(LineCheck(line=n, description=item.description, sku=sku, note=note))
-    return checks
+    return [
+        LineCheck(line=n, description=item.description, sku=catalog_match(item.description, catalog))
+        for n, item in enumerate(invoice.line_items, start=1)
+    ]
 
 
 def _line_cents(quantity: float | None, unit_price: float | None) -> int | None:
     if quantity is None or unit_price is None:
         return None
-    return int((to_decimal(quantity) * to_decimal(unit_price) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return round_cents(to_decimal(quantity) * to_decimal(unit_price) * 100)
+
+
+def _tax_from_rate(subtotal_cents: int, rate: float) -> int:
+    return round_cents(Decimal(subtotal_cents) * to_decimal(rate))
 
 
 def compute_totals(invoice: Invoice) -> ComputedTotals:
@@ -62,7 +66,7 @@ def compute_totals(invoice: Invoice) -> ComputedTotals:
     if invoice.stated_tax_amount is not None:
         tax = cents(invoice.stated_tax_amount)
     elif invoice.stated_tax_rate is not None and subtotal is not None:
-        tax = int((Decimal(subtotal) * to_decimal(invoice.stated_tax_rate)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        tax = _tax_from_rate(subtotal, invoice.stated_tax_rate)
     total = None
     if subtotal is not None:
         total = subtotal + (tax or 0) + (cents(invoice.stated_shipping) or 0)
@@ -178,10 +182,7 @@ def check_arithmetic(invoice: Invoice, totals: ComputedTotals, currency: str) ->
         mismatch(f"{item.description} amount", cents(item.stated_amount), computed, n, field="line_amount")
     mismatch("Subtotal", cents(invoice.stated_subtotal), totals.subtotal_cents)
     if invoice.stated_tax_rate is not None and invoice.stated_tax_amount is not None and totals.subtotal_cents is not None:
-        expected = int(
-            (Decimal(totals.subtotal_cents) * to_decimal(invoice.stated_tax_rate)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-        )
-        mismatch("Tax", cents(invoice.stated_tax_amount), expected)
+        mismatch("Tax", cents(invoice.stated_tax_amount), _tax_from_rate(totals.subtotal_cents, invoice.stated_tax_rate))
     mismatch("Total", cents(invoice.stated_total), totals.total_cents)
     return findings
 

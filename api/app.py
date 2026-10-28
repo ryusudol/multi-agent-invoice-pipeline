@@ -12,25 +12,35 @@ from collections.abc import AsyncIterator
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from invoice_agent import config, db
-from invoice_agent.events import now_iso
+from invoice_agent.events import PipelineEvent, now_iso
+from invoice_agent.ingestion.loader import is_invoice
 from invoice_agent.ingestion.normalize import due_date_text, normalize_invoice_number
 from invoice_agent.models import FindingCode, RunStatus
-from invoice_agent.orchestrator import ReviewError, RunState, Stage, create_run, load_state, resolve_review, run_pipeline, state_from_row
-from invoice_agent.payment import amount_due
+from invoice_agent.orchestrator import (
+    ReviewError,
+    RunState,
+    Stage,
+    create_run,
+    due_on_approval,
+    load_state,
+    resolve_review,
+    run_pipeline,
+    state_from_row,
+)
 
 WEB_DIST = config.ROOT / "web" / "dist"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
 class Worker:
-    """A single pipeline thread. Pending runs wait their turn with status processing, stage load."""
+    """A single pipeline thread. Pending runs wait their turn with status processing, stage queued."""
 
     def __init__(self) -> None:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pipeline")
@@ -81,17 +91,11 @@ class RunSummary(BaseModel):
     stage: Stage
     headline: str
     started_at: str
-    finished_at: str | None
     duration_ms: int
 
 
-class Event(BaseModel):
+class Event(PipelineEvent):
     id: int
-    ts: str
-    stage: str
-    type: str
-    message: str
-    payload: dict[str, Any]
 
 
 class RunDetail(RunSummary):
@@ -104,7 +108,6 @@ class RunDetail(RunSummary):
 class ReviewRequest(BaseModel):
     decision: Literal["approve", "reject"]
     comment: str = ""
-    reviewer: str | None = None
 
 
 class Metrics(BaseModel):
@@ -138,31 +141,33 @@ def summarize(state: RunState) -> RunSummary:
         stage=state.stage,
         headline=headline(state),
         started_at=state.started_at,
-        finished_at=state.finished_at,
         duration_ms=state.duration_ms,
     )
 
 
 def detail(state: RunState) -> RunDetail:
-    due = None
-    if state.status == RunStatus.NEEDS_REVIEW and state.total_cents is not None:
-        due = amount_due(state.identity.key, state.total_cents) if state.identity else state.total_cents
-    events = [
-        Event(id=e["id"], ts=e["ts"], stage=e["stage"], type=e["type"], message=e["message"], payload=json.loads(e["payload"]))
-        for e in db.list_events(state.run_id)
-    ]
+    due = due_on_approval(state) if state.status == RunStatus.NEEDS_REVIEW else None
+    events = [Event.model_validate({**e, "payload": json.loads(e["payload"])}) for e in map(dict, db.list_events(state.run_id))]
     due_date = due_date_text(state.invoice.due_date) if state.invoice else None
     return RunDetail(**summarize(state).model_dump(), state=state, due_date=due_date, due_on_approval_cents=due, events=events)
 
 
-def samples() -> list[Sample]:
-    used = {(config.ROOT / row["source_file"]).resolve() for row in db.list_runs()}  # CLI paths are relative to the repo
-    return [
-        Sample(id=f"{folder.name}/{path.name}", name=path.name, folder=folder.name, processed=path.resolve() in used)
+def sample_paths() -> dict[str, Path]:
+    """id (folder/name) -> path, for every invoice in the sample folders."""
+    return {
+        f"{folder.name}/{path.name}": path
         for folder in config.SAMPLE_DIRS
         if folder.is_dir()
         for path in sorted(folder.iterdir())
-        if path.is_file() and path.suffix.lower() in config.SUPPORTED_SUFFIXES
+        if is_invoice(path)
+    }
+
+
+def samples() -> list[Sample]:
+    used = {(config.ROOT / file).resolve() for file in db.source_files()}  # CLI paths are relative to the repo
+    return [
+        Sample(id=sample_id, name=path.name, folder=path.parent.name, processed=path.resolve() in used)
+        for sample_id, path in sample_paths().items()
     ]
 
 
@@ -186,10 +191,10 @@ def start_run(file: UploadFile | None = File(None), sample: str | None = Form(No
     if (file is None) == (sample is None):
         raise HTTPException(422, "Send either a file or a sample")
     if sample is not None:
-        match = next((s for s in samples() if s.id == sample), None)
-        if match is None:
+        found = sample_paths().get(sample)
+        if found is None:
             raise HTTPException(404, f"No sample named {sample}")
-        path = config.ROOT / "data" / match.folder / match.name
+        path = found
     else:
         assert file is not None
         name = Path(file.filename or "").name
@@ -223,9 +228,10 @@ def invoice_detail(run_id: int) -> RunDetail:
 
 @app.post("/api/invoices/{run_id}/review")
 def review(run_id: int, body: ReviewRequest) -> RunDetail:
-    get_state(run_id)
     try:
-        state = resolve_review(run_id, body.decision, body.comment.strip(), reviewer=body.reviewer or getpass.getuser())
+        state = resolve_review(run_id, body.decision, body.comment.strip(), reviewer=getpass.getuser())
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
     except ReviewError as exc:
         raise HTTPException(409, str(exc)) from exc
     return detail(state)
@@ -233,17 +239,7 @@ def review(run_id: int, body: ReviewRequest) -> RunDetail:
 
 @app.get("/api/metrics")
 def metrics() -> Metrics:
-    states = [state_from_row(row) for row in db.list_runs()]
-    by_status: dict[RunStatus, int] = {}
-    findings: dict[FindingCode, int] = {}
-    for s in states:
-        by_status[s.status] = by_status.get(s.status, 0) + 1
-        for code in {f.code for f in s.validation.findings} if s.validation else set():
-            findings[code] = findings.get(code, 0) + 1
-    return Metrics(
-        by_status=by_status,
-        findings_by_code=findings,
-    )
+    return Metrics.model_validate({"by_status": db.status_counts(), "findings_by_code": db.finding_counts()})
 
 
 if WEB_DIST.is_dir():

@@ -1,6 +1,7 @@
 """Rich rendering for the CLI: live stage checklist, findings table, decision card, batch summary."""
 
 import re
+from collections import Counter
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -12,8 +13,7 @@ from rich.text import Text
 from invoice_agent.events import EventType, PipelineEvent
 from invoice_agent.ingestion.normalize import due_date_text, format_money
 from invoice_agent.models import Outcome, RunStatus, Severity, Usage
-from invoice_agent.orchestrator import RunState
-from invoice_agent.payment import amount_due
+from invoice_agent.orchestrator import RunState, due_on_approval
 
 STATUS_STYLE = {
     RunStatus.PAID: ("PAID", "bold green"),
@@ -221,9 +221,7 @@ def render_summary(console: Console, states: list[RunState]) -> None:
             reason,
         )
     console.print(table)
-    counts: dict[RunStatus, int] = {}
-    for state in states:
-        counts[state.status] = counts.get(state.status, 0) + 1
+    counts = Counter(state.status for state in states)
     paid = sum(s.payment.amount_cents for s in states if s.payment and s.payment.currency == "USD")
     parts = [f"{n} {STATUS_STYLE[status][0].lower()}" for status, n in counts.items()]
     usage = Usage()
@@ -233,12 +231,6 @@ def render_summary(console: Console, states: list[RunState]) -> None:
         f"{len(states)} invoice(s): " + ", ".join(parts) + f" · {format_money(paid)} paid · {usage_text(usage)}",
         highlight=False,
     )
-
-
-def due_on_approval(state: RunState) -> int | None:
-    """What approving would pay right now: the total minus earlier payments for the same invoice key."""
-    total = state.total_cents
-    return amount_due(state.identity.key, total) if state.identity and total is not None else total
 
 
 def payment_question(state: RunState) -> str:

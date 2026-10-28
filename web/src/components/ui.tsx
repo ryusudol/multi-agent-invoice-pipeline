@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { STATUS_LABEL, type RunStatus } from "../api";
+import { STATUS_LABEL, type RunStatus, type Severity } from "../api";
 
 // Every status pairs a colored dot with its label, so color is never the only signal.
-const STATUS_TONE: Record<RunStatus, { dot: string; text: string }> = {
+export const STATUS_TONE: Record<RunStatus, { dot: string; text: string }> = {
   paid: { dot: "bg-good", text: "text-good-ink" },
   rejected: { dot: "bg-bad", text: "text-bad-ink" },
   needs_review: { dot: "bg-warn", text: "text-warn-ink" },
@@ -46,7 +46,7 @@ export function Section({ title, children, aside }: { title: string; children: R
   );
 }
 
-export function SeverityMark({ severity }: { severity: "error" | "warning" }) {
+export function SeverityMark({ severity }: { severity: Severity }) {
   return severity === "error" ? (
     <span className="text-[11px] font-semibold tracking-[0.2em] text-bad-ink" title="Error: blocks payment">ERROR</span>
   ) : (
@@ -71,10 +71,13 @@ export function Button({ variant = "primary", className = "", ...props }: React.
 /** One sentence per line, like the CLI card; "$7,185.00" and "Ltd." never split. */
 export function Sentences({ text }: { text: string }) {
   const sentences = text.trim().split(/(?<=[.!?])(?<!(?:Ltd|Inc|Co|Corp)\.)\s+(?=[A-Z0-9$])/).filter(Boolean);
-  if (sentences.length < 2) return <p>{text}</p>;
+  return sentences.length < 2 ? <p>{text}</p> : <Bullets items={sentences} />;
+}
+
+export function Bullets({ items }: { items: string[] }) {
   return (
     <ul className="space-y-1.5">
-      {sentences.map((s, i) => (
+      {items.map((s, i) => (
         <li key={i} className="grid grid-cols-[1rem_1fr]">
           <span aria-hidden className="text-faint">—</span>
           {s}
@@ -84,17 +87,12 @@ export function Sentences({ text }: { text: string }) {
   );
 }
 
-const SPECIAL: Record<string, string> = { non_usd_currency: "Non-USD currency", needs_review: "Needs review" };
+const SPECIAL: Record<string, string> = { non_usd_currency: "Non-USD currency" };
 
 export function humanize(code: string): string {
   if (SPECIAL[code]) return SPECIAL[code];
   const text = code.replaceAll("_", " ");
   return text[0].toUpperCase() + text.slice(1);
-}
-
-export function duration(ms: number | null | undefined): string {
-  if (ms == null) return "—";
-  return ms < 60_000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
 }
 
 /** Elapsed time as mm:ss.s, e.g. 01:23.4 */

@@ -119,6 +119,7 @@ def test_stopping_the_server_fails_queued_runs(monkeypatch):
     with TestClient(app) as client:
         ids = [client.post("/api/runs", data={"sample": "invoices/invoice_1001.txt"}).json()["id"] for _ in range(3)]
         assert started.wait(5)
+        assert client.get(f"/api/runs/{ids[2]}").json()["stage"] == "queued"
         threading.Timer(0.2, release.set).start()
     rows = [db.get_run(run_id) for run_id in ids]
     assert [r["status"] for r in rows] == ["paid", "failed", "failed"]

@@ -111,7 +111,6 @@ class LineCheck(BaseModel):
     line: int
     description: str
     sku: str | None
-    note: str | None = None  # stripped parenthetical, e.g. "rush order"
 
 
 class ComputedTotals(BaseModel):
@@ -141,15 +140,14 @@ class ValidationReport(BaseModel):
 
 class InvoiceIdentity(BaseModel):
     number: str  # normalized, e.g. INV-1012
-    vendor: str  # normalized, e.g. quickship distributers
-    key: str  # number/vendor
+    key: str  # number/normalized vendor, e.g. INV-1012/quickship distributers
     fingerprint: str
 
 
 class DuplicateVerdict(BaseModel):
     kind: Literal["new", "identical", "revised", "vendor_conflict", "no_number"]
     earlier_run_id: int | None = None
-    earlier_status: str | None = None
+    earlier_status: RunStatus | None = None
     earlier_file: str | None = None  # file name, e.g. invoice_1004.json
     message: str = ""
     findings: list[Finding] = Field(default_factory=list)

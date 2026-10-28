@@ -37,13 +37,14 @@ from invoice_agent.models import (
     Usage,
     ValidationReport,
 )
-from invoice_agent.payment import pay
+from invoice_agent.payment import amount_due, pay
 from invoice_agent.validation.rules import compute_totals, match_lines, run_rules
 
 log = logging.getLogger("invoice_agent.orchestrator")
 
 
 class Stage(StrEnum):
+    QUEUED = "queued"  # registered, waiting for the API worker
     LOAD = "load"
     EXTRACT = "extract"  # includes check_extraction: the Intake agent's output validator, with retries
     CHECK_DUPLICATE = "check_duplicate"
@@ -119,6 +120,12 @@ class RunState(BaseModel):
         return compute_totals(self.invoice).payable_cents if self.invoice else None
 
 
+def due_on_approval(state: RunState) -> int | None:
+    """What approving would pay right now: the total minus earlier payments for the same invoice key."""
+    total = state.total_cents
+    return amount_due(state.identity.key, total) if state.identity and total is not None else total
+
+
 class ReviewError(ValueError):
     pass
 
@@ -171,12 +178,7 @@ def state_from_row(row: sqlite3.Row) -> RunState:
         status=RunStatus(row["status"]),
         source_text=row["source_text"],
         invoice=parse(Invoice, "extraction_json"),
-        identity=InvoiceIdentity(
-            number=row["invoice_number"],
-            vendor=row["invoice_key"].split("/", 1)[1],
-            key=row["invoice_key"],
-            fingerprint=row["fingerprint"],
-        )
+        identity=InvoiceIdentity(number=row["invoice_number"], key=row["invoice_key"], fingerprint=row["fingerprint"])
         if row["invoice_key"]
         else None,
         duplicate=parse(DuplicateVerdict, "duplicate_json"),
@@ -269,7 +271,7 @@ def _policy_gate(state: RunState, sink: EventSink) -> tuple[str, str]:
 
 def _approval(state: RunState, sink: EventSink) -> tuple[str, str]:
     assert state.invoice is not None and state.validation is not None and state.policy is not None
-    deps = AgentDeps(sink=sink, stage=Stage.APPROVAL)
+    deps = AgentDeps(sink=sink, stage=Stage.APPROVAL, catalog=db.load_inventory())
     decision = approval.decide(state.invoice, state.validation, state.policy, deps, state.usage)
     state.decision = decision
     sink.emit(Stage.APPROVAL, EventType.DECISION, f"{decision.outcome}: {decision.rationale}", **decision.model_dump(mode="json"))
@@ -334,6 +336,10 @@ def _describe_error(exc: Exception) -> str:
     return f"{type(exc).__name__}: {exc}"
 
 
+def _transition(sink: EventSink, source: Stage, target: Stage, condition: str) -> None:
+    sink.emit(source, EventType.TRANSITION, f"{source} → {target} ({condition})", source=source, target=target, condition=condition)
+
+
 def _drive(state: RunState, stage: Stage, sink: EventSink) -> RunState:
     started = time.perf_counter()
     while stage not in TERMINAL:
@@ -356,7 +362,7 @@ def _drive(state: RunState, stage: Stage, sink: EventSink) -> RunState:
             _save(state)
             sink.emit(stage, EventType.ERROR, "Interrupted before the run finished")
             raise
-        sink.emit(stage, EventType.TRANSITION, f"{stage} → {next_stage} ({condition})", source=stage, target=next_stage, condition=condition)
+        _transition(sink, stage, next_stage, condition)
         stage = next_stage
 
     state.stage = stage
@@ -414,5 +420,5 @@ def resolve_review(
         **review.model_dump(mode="json"),
     )
     next_stage = TRANSITIONS[(Stage.NEEDS_REVIEW, outcome)]
-    sink.emit(Stage.NEEDS_REVIEW, EventType.TRANSITION, f"{Stage.NEEDS_REVIEW} → {next_stage} ({outcome})", source=Stage.NEEDS_REVIEW, target=next_stage, condition=outcome)
+    _transition(sink, Stage.NEEDS_REVIEW, next_stage, outcome)
     return _drive(state, next_stage, sink)

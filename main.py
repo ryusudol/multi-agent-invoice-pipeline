@@ -11,14 +11,11 @@ from rich.console import Console
 from invoice_agent import config, db
 from invoice_agent.console import LiveReporter, ask_review, render_result, render_summary
 from invoice_agent.events import configure_logging
+from invoice_agent.ingestion.loader import invoice_files, is_invoice
 from invoice_agent.models import RunStatus
 from invoice_agent.orchestrator import ReviewError, RunState, load_state, resolve_review, run_pipeline
 
 console = Console()
-
-
-def is_invoice(path: Path) -> bool:
-    return path.is_file() and path.suffix.lower() in config.SUPPORTED_SUFFIXES
 
 
 def closest(name: str, options: list[Path]) -> Path | None:
@@ -46,10 +43,6 @@ def suggest_path(path: Path) -> str | None:
     if match is None:
         return None
     return str(match.relative_to(Path.cwd())) if match.is_relative_to(Path.cwd()) else str(match)
-
-
-def invoice_files(folder: Path) -> list[Path]:
-    return sorted(p for p in folder.iterdir() if is_invoice(p))
 
 
 def review(state: RunState, reporter: LiveReporter) -> RunState:

@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, money, STAGE_ACTIVE, STAGE_LABEL, type PipelineEvent, type RunDetail } from "../api";
+import { api, money, STAGE_ACTIVE, STAGE_LABEL, STATUS_LABEL, type PipelineEvent, type RunDetail } from "../api";
 import { StageTrack } from "./StageTrack";
-import { Button, clock, humanize, Row, Section, Sentences, SeverityMark, Spinner, StatusTag } from "./ui";
+import { Bullets, Button, clock, humanize, Row, Section, Sentences, SeverityMark, Spinner, StatusTag } from "./ui";
 
 const TABS = ["Summary", "Document", "Agent log"] as const;
 type Tab = (typeof TABS)[number];
@@ -13,7 +13,7 @@ const OUTCOME = { approve: "Approved", reject: "Rejected", needs_review: "Sent t
 export function Detail({ run, onSelect }: { run: RunDetail; onSelect: (id: number) => void }) {
   const [tab, setTab] = useState<Tab>("Summary");
   const processing = run.status === "processing";
-  const queued = processing && run.events.length === 0;  // the worker hasn't started it yet
+  const queued = run.stage === "queued";  // the worker hasn't started it yet
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-line px-5 pt-6 sm:px-8">
@@ -83,7 +83,7 @@ function Summary({ run, queued, onSelect }: { run: RunDetail; queued: boolean; o
         {state.payment && (
           <Row label="Payment">
             <span className="tabular-nums">{money(state.payment.amount_cents, state.payment.currency)}</span>
-            {state.payment.status !== "paid" && <span className="text-muted"> ({state.payment.status.replace("_", " ")})</span>}
+            {state.payment.status !== "paid" && <span className="text-muted"> ({humanize(state.payment.status).toLowerCase()})</span>}
             {state.payment.previously_paid_cents > 0 && state.payment.status === "paid" && (
               <span className="text-muted"> (approved {money(state.payment.approved_total_cents, state.payment.currency)} minus {money(state.payment.previously_paid_cents, state.payment.currency)} already paid)</span>
             )}
@@ -94,7 +94,7 @@ function Summary({ run, queued, onSelect }: { run: RunDetail; queued: boolean; o
             <button className="underline decoration-line-strong underline-offset-4 hover:decoration-ink" onClick={() => onSelect(state.duplicate!.earlier_run_id!)}>
               {state.duplicate.earlier_file ?? `Run ${state.duplicate.earlier_run_id}`}
             </button>{" "}
-            <span className="text-muted">({humanize(state.duplicate.earlier_status ?? "").toLowerCase()})</span>
+            {state.duplicate.earlier_status && <span className="text-muted">({STATUS_LABEL[state.duplicate.earlier_status].toLowerCase()})</span>}
           </Row>
         )}
         {decision && <Row label="Rationale"><Sentences text={decision.rationale} /></Row>}
@@ -105,7 +105,7 @@ function Summary({ run, queued, onSelect }: { run: RunDetail; queued: boolean; o
           </Row>
         )}
         {decision && decision.critic_issues.length > 0 && (
-          <Row label="Critic issues"><Sentences text={decision.critic_issues.join(" ")} /></Row>
+          <Row label="Critic issues"><Bullets items={decision.critic_issues} /></Row>
         )}
         {state.error && <Row label="Error"><span className="text-serious-ink">{state.error}</span></Row>}
       </dl>
@@ -156,7 +156,7 @@ function ReviewBox({ run }: { run: RunDetail }) {
     mutationFn: (decision: "approve" | "reject") => api.review(run.id, decision, comment.trim()),
     onSuccess: (detail) => {
       queryClient.setQueryData(["invoice", run.id], detail);
-      queryClient.invalidateQueries();
+      for (const key of ["invoices", "metrics"]) queryClient.invalidateQueries({ queryKey: [key] });
     },
   });
   const total = run.total_cents ?? 0;

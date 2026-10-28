@@ -50,7 +50,6 @@ export function Overview({ metrics }: { metrics: Metrics | undefined }) {
           {findings.length ? <HorizontalBars data={findings} unit="invoice" /> : <p className="text-sm text-faint">No findings yet.</p>}
         </Section>
       </div>
-      <p className="mt-12 text-xs tracking-wide text-faint">Select an invoice to see its decision, the source document, and the agents' telemetry.</p>
     </div>
   );
 }

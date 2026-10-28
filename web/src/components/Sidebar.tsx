@@ -30,7 +30,7 @@ export function Sidebar({ runs, selected, onSelect }: Props) {
       return started;
     },
     onSuccess: (started) => {
-      queryClient.invalidateQueries();
+      for (const key of ["invoices", "metrics", "samples"]) queryClient.invalidateQueries({ queryKey: [key] });
       if (started.length) onSelect(started[0].id);
     },
   });
@@ -47,7 +47,6 @@ export function Sidebar({ runs, selected, onSelect }: Props) {
   };
 
   const visible = (runs ?? []).filter((r) => tab === null || r.status === tab);
-  const activeId = Math.min(...(runs ?? []).filter((r) => r.status === "processing").map((r) => r.id));
 
   return (
     <aside
@@ -84,7 +83,7 @@ export function Sidebar({ runs, selected, onSelect }: Props) {
           </li>
         )}
         {visible.map((run) => {
-          const queued = run.status === "processing" && run.id !== activeId && run.stage === "load";
+          const queued = run.stage === "queued";
           const current = run.id === selected;
           return (
             <li key={run.id}>

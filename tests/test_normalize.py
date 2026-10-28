@@ -86,13 +86,13 @@ def test_parenthetical_split():
 
 
 def test_catalog_match(catalog):
-    assert catalog_match("WidgetA", catalog) == ("WidgetA", None)
-    assert catalog_match("Widget A", catalog) == ("WidgetA", None)
-    assert catalog_match("Gadget X", catalog) == ("GadgetX", None)
-    assert catalog_match("WidgetA (rush order)", catalog) == ("WidgetA", "rush order")
+    assert catalog_match("WidgetA", catalog) == "WidgetA"
+    assert catalog_match("Widget A", catalog) == "WidgetA"
+    assert catalog_match("Gadget X", catalog) == "GadgetX"
+    assert catalog_match("WidgetA (rush order)", catalog) == "WidgetA"
 
 
 def test_widget_c_stays_unknown(catalog):
-    assert catalog_match("WidgetC", catalog) == (None, None)
+    assert catalog_match("WidgetC", catalog) == None
     assert suggest("WidgetC", catalog) == ["WidgetA", "WidgetB"]
-    assert catalog_match("SuperGizmo", catalog) == (None, None)
+    assert catalog_match("SuperGizmo", catalog) == None

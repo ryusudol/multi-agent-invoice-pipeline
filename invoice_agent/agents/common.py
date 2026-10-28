@@ -66,7 +66,7 @@ def _catalog_entry(sku: str, row: Any) -> dict[str, Any]:
 
 def lookup_item(ctx: RunContext[AgentDeps], name: str) -> dict[str, Any]:
     """Look up one inventory item by its exact catalog name (spaces are ignored). Returns stock and catalog price, or found=false."""
-    catalog = ctx.deps.catalog or db.load_inventory()
+    catalog = ctx.deps.catalog
     sku = item_key(name)
     row = catalog.get(sku)
     result = {"found": True, **_catalog_entry(sku, row)} if row is not None else {"found": False, "item": name}
@@ -75,7 +75,7 @@ def lookup_item(ctx: RunContext[AgentDeps], name: str) -> dict[str, Any]:
 
 def search_inventory(ctx: RunContext[AgentDeps], query: str) -> dict[str, Any]:
     """List catalog items whose names look similar to the query. Similar is not the same: use it for hints only."""
-    catalog = ctx.deps.catalog or db.load_inventory()
+    catalog = ctx.deps.catalog
     result = {
         "query": query,
         "similar_names": suggest(query, catalog),
@@ -86,7 +86,7 @@ def search_inventory(ctx: RunContext[AgentDeps], query: str) -> dict[str, Any]:
 
 def check_stock(ctx: RunContext[AgentDeps], item: str, quantity: float) -> dict[str, Any]:
     """Check whether the total quantity requested for a catalog item is available in stock."""
-    catalog = ctx.deps.catalog or db.load_inventory()
+    catalog = ctx.deps.catalog
     row = catalog.get(item_key(item))
     if row is None:
         result: dict[str, Any] = {"found": False, "item": item}
