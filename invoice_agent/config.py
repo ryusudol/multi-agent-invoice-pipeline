@@ -10,6 +10,8 @@ load_dotenv(ROOT / ".env")
 
 DB_PATH = ROOT / "inventory.db"
 LOG_PATH = ROOT / "logs" / "pipeline.jsonl"
+UPLOAD_DIR = ROOT / "runs" / "uploads"
+SAMPLE_DIRS = (ROOT / "data" / "invoices", ROOT / "data" / "invoices_extra")
 SUPPORTED_SUFFIXES = (".txt", ".json", ".csv", ".xml", ".pdf")
 
 XAI_MODEL = os.getenv("XAI_MODEL") or "grok-4.7"

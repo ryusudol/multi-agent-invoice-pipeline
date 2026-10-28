@@ -10,7 +10,7 @@ from rich.table import Table
 from rich.text import Text
 
 from invoice_agent.events import EventType, PipelineEvent
-from invoice_agent.ingestion.normalize import format_money, parse_date
+from invoice_agent.ingestion.normalize import due_date_text, format_money
 from invoice_agent.models import Outcome, RunStatus, Severity, Usage
 from invoice_agent.orchestrator import RunState
 from invoice_agent.payment import amount_due
@@ -109,8 +109,9 @@ def _escape(text: str) -> str:
     return text.replace("[", r"\[")
 
 
-# A sentence ends at . ! or ? followed by whitespace and a capital, digit, or $; "$7,185.00" never splits.
-SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9$])")
+# A sentence ends at . ! or ? followed by whitespace and a capital, digit, or $; "$7,185.00" never splits,
+# and neither does a company suffix ("Precision Parts Ltd. $1,890.00").
+SENTENCE_END = re.compile(r"(?<=[.!?])(?<!Ltd\.)(?<!Inc\.)(?<!Co\.)(?<!Corp\.)\s+(?=[A-Z0-9$])")
 
 
 def bullets(text: str) -> Table | str:
@@ -129,14 +130,6 @@ def bullets(text: str) -> Table | str:
 def status_text(status: RunStatus) -> Text:
     label, style = STATUS_STYLE[status]
     return Text(label, style=style)
-
-
-def due_date_text(raw: str | None) -> str:
-    """One format for every invoice ('02/28/2026' -> '2026-02-28'); a value that isn't a date is shown as written."""
-    if raw is None:
-        return "—"
-    parsed = parse_date(raw)
-    return parsed.isoformat() if parsed else f"{raw} (not a date)"
 
 
 def usage_text(usage: Usage) -> str:
@@ -180,7 +173,7 @@ def render_result(console: Console, state: RunState, verbose: bool = False) -> N
         amount = format_money(p.amount_cents, p.currency)
         summary.add_row("Payment", amount if p.status == "paid" else f"{amount} ({p.status.replace('_', ' ')})")
     if state.status == RunStatus.DUPLICATE and state.duplicate:
-        summary.add_row("Duplicate of", f"run #{state.duplicate.earlier_run_id} ({state.duplicate.earlier_status})")
+        summary.add_row("Duplicate of", f"{state.duplicate.earlier} ({state.duplicate.earlier_status})")
     if state.error:
         summary.add_row("Error", Text(state.error, style="magenta"))
     if verbose:
@@ -208,7 +201,7 @@ def render_summary(console: Console, states: list[RunState]) -> None:
     for state in states:
         inv = state.invoice
         if state.status == RunStatus.DUPLICATE and state.duplicate:
-            reason = f"same as run #{state.duplicate.earlier_run_id} ({state.duplicate.earlier_status})"
+            reason = f"same as {state.duplicate.earlier} ({state.duplicate.earlier_status})"
         elif state.error:
             reason = state.error
         elif state.payment:

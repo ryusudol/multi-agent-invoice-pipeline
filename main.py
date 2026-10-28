@@ -78,11 +78,26 @@ def pending_review(state: RunState) -> RunState | None:
     return None
 
 
+def serve(port: int) -> int:
+    import uvicorn
+
+    from api.app import WEB_DIST, app
+
+    configure_logging()
+    if not WEB_DIST.is_dir():
+        console.print("[yellow]web/dist is missing, so only the API is served.[/yellow] Build it: cd web && npm run build")
+    console.print(f"Dashboard: [bold]http://localhost:{port}[/bold]  (Ctrl-C to stop)")
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Process Acme Corp invoices end to end.")
+    parser.add_argument("command", nargs="?", choices=["serve"], help="serve: open the dashboard at localhost")
     parser.add_argument("--invoice_path", help="invoice file, or a folder to process in filename order")
     parser.add_argument("-v", "--verbose", action="store_true", help="show LLM and tool calls")
     parser.add_argument("--reset", action="store_true", help="delete and re-create the database")
+    parser.add_argument("--port", type=int, default=8000, help="dashboard port (with serve)")
     args = parser.parse_args(argv)
 
     if not config.xai_api_key():
@@ -91,12 +106,14 @@ def main(argv: list[str] | None = None) -> int:
             "  cp .env.example .env"
         )
         return 1
-    if args.invoice_path is None and not args.reset:
+    if args.command is None and args.invoice_path is None and not args.reset:
         parser.error("--invoice_path is required")
 
     db.init_db(reset=args.reset)
     if args.reset:
         console.print("[dim]Database reset.[/dim]")
+    if args.command == "serve":
+        return serve(args.port)
     if args.invoice_path is None:
         return 0
 

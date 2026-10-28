@@ -103,21 +103,21 @@ def check_quantities_and_prices(invoice: Invoice) -> list[Finding]:
     findings = []
     for n, item in enumerate(invoice.line_items, start=1):
         if item.quantity is None:
-            findings.append(_error(FindingCode.MISSING_FIELD, f"Line {n} '{item.description}' has no quantity", n))
+            findings.append(_error(FindingCode.MISSING_FIELD, f"{item.description} has no quantity", n))
         elif item.quantity <= 0:
             findings.append(
                 _error(
                     FindingCode.INVALID_QUANTITY,
-                    f"Line {n} '{item.description}' has invalid quantity {item.quantity:g}",
+                    f"{item.description} has invalid quantity {item.quantity:g}",
                     n,
                     quantity=item.quantity,
                 )
             )
         if item.unit_price is None:
-            findings.append(_error(FindingCode.MISSING_FIELD, f"Line {n} '{item.description}' has no unit price", n))
+            findings.append(_error(FindingCode.MISSING_FIELD, f"{item.description} has no unit price", n))
         elif item.unit_price < 0:
             findings.append(
-                _error(FindingCode.INVALID_PRICE, f"Line {n} '{item.description}' has negative unit price", n)
+                _error(FindingCode.INVALID_PRICE, f"{item.description} has negative unit price", n)
             )
     return findings
 
@@ -128,7 +128,7 @@ def check_items_and_stock(lines: list[LineCheck], invoice: Invoice, catalog: Cat
     for check, item in zip(lines, invoice.line_items, strict=True):
         if check.sku is None:
             hints = suggest(check.description, catalog)
-            message = f"Line {check.line} '{check.description}' is not in inventory"
+            message = f"{check.description} is not in inventory"
             if hints:
                 message += f" (did you mean {' or '.join(hints)}?)"
             findings.append(_error(FindingCode.UNKNOWN_ITEM, message, check.line, suggestions=hints))
@@ -156,7 +156,7 @@ def check_items_and_stock(lines: list[LineCheck], invoice: Invoice, catalog: Cat
 def check_arithmetic(invoice: Invoice, totals: ComputedTotals, currency: str) -> list[Finding]:
     findings = []
 
-    def mismatch(label: str, stated: int | None, computed: int | None, line: int | None = None) -> None:
+    def mismatch(label: str, stated: int | None, computed: int | None, line: int | None = None, field: str | None = None) -> None:
         if not _differs(stated, computed):
             return
         assert stated is not None and computed is not None
@@ -168,14 +168,14 @@ def check_arithmetic(invoice: Invoice, totals: ComputedTotals, currency: str) ->
                 f"{label} {direction} by {format_money(abs(diff), currency)}: "
                 f"stated {format_money(stated, currency)}, computed {format_money(computed, currency)}",
                 line,
-                field=label.lower(),
+                field=field or label.lower(),
                 stated_cents=stated,
                 computed_cents=computed,
             )
         )
 
     for n, (item, computed) in enumerate(zip(invoice.line_items, totals.line_amounts_cents, strict=True), start=1):
-        mismatch(f"Line {n} amount", cents(item.stated_amount), computed, n)
+        mismatch(f"{item.description} amount", cents(item.stated_amount), computed, n, field="line_amount")
     mismatch("Subtotal", cents(invoice.stated_subtotal), totals.subtotal_cents)
     if invoice.stated_tax_rate is not None and invoice.stated_tax_amount is not None and totals.subtotal_cents is not None:
         expected = int(
@@ -205,8 +205,7 @@ def check_prices(lines: list[LineCheck], invoice: Invoice, catalog: Catalog, cur
             findings.append(
                 _warning(
                     FindingCode.PRICE_ABOVE_CATALOG,
-                    f"Line {check.line} '{check.description}': {format_money(invoice_cents)} vs catalog "
-                    f"{format_money(catalog_cents)} (+{format_money(over)} on {quantity:g} units)",
+                    f"{check.description}: {format_money(invoice_cents)} vs catalog {format_money(catalog_cents)}",
                     check.line,
                     sku=check.sku,
                     invoice_price_cents=invoice_cents,

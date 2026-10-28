@@ -108,6 +108,14 @@ def parse_date(raw: str | None) -> date | None:
     return None
 
 
+def due_date_text(raw: str | None) -> str:
+    """One format for every invoice ('02/28/2026' -> '2026-02-28'); a value that isn't a date is shown as written."""
+    if raw is None:
+        return "—"
+    parsed = parse_date(raw)
+    return parsed.isoformat() if parsed else f"{raw} (not a date)"
+
+
 def format_money(amount_cents: int | None, currency: str = "USD") -> str:
     if amount_cents is None:
         return "—"

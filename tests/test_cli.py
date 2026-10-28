@@ -96,3 +96,10 @@ def test_rerun_of_pending_invoice_offers_review_again(answers, capsys):
     assert "DUPLICATE" in out
     assert load_state(1).status == RunStatus.REJECTED
     assert load_state(2).status == RunStatus.DUPLICATE
+
+
+def test_rationale_bullets_do_not_split_after_a_company_suffix():
+    from invoice_agent.console import SENTENCE_END
+
+    text = "History run #4 paid Precision Parts Ltd. $1,890.00 on this number. Total is $5,940.00."
+    assert SENTENCE_END.split(text) == ["History run #4 paid Precision Parts Ltd. $1,890.00 on this number.", "Total is $5,940.00."]

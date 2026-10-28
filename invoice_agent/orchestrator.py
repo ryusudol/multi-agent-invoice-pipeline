@@ -6,6 +6,7 @@ by resolve_review() from another process (CLI prompt now, dashboard later).
 """
 
 import logging
+import sqlite3
 import time
 from collections.abc import Callable
 from enum import StrEnum
@@ -155,7 +156,10 @@ def load_state(run_id: int) -> RunState:
     row = db.get_run(run_id)
     if row is None:
         raise LookupError(f"Run #{run_id} does not exist")
+    return state_from_row(row)
 
+
+def state_from_row(row: sqlite3.Row) -> RunState:
     def parse[M: BaseModel](model: type[M], column: str) -> M | None:
         return model.model_validate_json(row[column]) if row[column] else None
 
@@ -371,11 +375,17 @@ def _drive(state: RunState, stage: Stage, sink: EventSink) -> RunState:
     return state
 
 
-def run_pipeline(path: str | Path, on_event: EventCallback | None = None) -> RunState:
+def create_run(path: str | Path) -> int:
+    """Register a run before it starts, so the API can hand back its id while it is queued."""
+    return db.create_run(str(path), now_iso())
+
+
+def run_pipeline(path: str | Path, on_event: EventCallback | None = None, run_id: int | None = None) -> RunState:
     path = Path(path)
-    started_at = now_iso()
-    run_id = db.create_run(str(path), started_at)
-    state = RunState(run_id=run_id, source_file=str(path), started_at=started_at)
+    run_id = run_id or create_run(path)
+    row = db.get_run(run_id)
+    assert row is not None
+    state = RunState(run_id=run_id, source_file=str(path), started_at=row["started_at"])
     sink = EventSink(run_id, on_event)
     sink.emit(Stage.LOAD, EventType.RUN_STARTED, f"Run #{run_id} started for {path.name}", source_file=str(path))
     return _drive(state, Stage.LOAD, sink)

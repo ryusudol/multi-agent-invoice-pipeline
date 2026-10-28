@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* Black canvas, white type, hairlines, sharp corners. Color is reserved for status. */
+@theme {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-canvas: #000000;
+  --color-sunken: #0b0b0b;
+  --color-raised: #141414;
+  --color-line: #222222;
+  --color-line-strong: #3d3d3d;
+  --color-ink: #ffffff;
+  --color-muted: #a3a3a3;
+  --color-faint: #6f6f6f;
+
+  /* Status marks (dots, fills) and status text. */
+  --color-good: #0ca30c;
+  --color-good-ink: #4cc94c;
+  --color-warn: #fab219;
+  --color-warn-ink: #fab219;
+  --color-serious: #ec835a;
+  --color-serious-ink: #ec835a;
+  --color-bad: #d03b3b;
+  --color-bad-ink: #ef6b6b;
+  --color-neutral: #6f6f6f;
+}
+
+/* Small uppercase label with wide tracking, used for every heading and field name. */
+@utility eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-canvas text-ink font-sans antialiased;
+}
+
+::selection {
+  background: #ffffff;
+  color: #000000;
+}

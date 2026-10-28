@@ -150,8 +150,14 @@ class DuplicateVerdict(BaseModel):
     kind: Literal["new", "identical", "revised", "vendor_conflict", "no_number"]
     earlier_run_id: int | None = None
     earlier_status: str | None = None
+    earlier_file: str | None = None  # file name, e.g. invoice_1004.json
     message: str = ""
     findings: list[Finding] = Field(default_factory=list)
+
+    @property
+    def earlier(self) -> str:
+        """How to name the earlier run to a person: its file, which is what they ran."""
+        return self.earlier_file or f"run #{self.earlier_run_id}"
 
 
 class Outcome(StrEnum):

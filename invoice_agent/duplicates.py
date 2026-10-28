@@ -5,6 +5,7 @@ import json
 import sqlite3
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 from invoice_agent.ingestion.normalize import (
@@ -71,6 +72,10 @@ def line_diff(earlier: Invoice, current: Invoice) -> tuple[list[str], list[str]]
     return added, removed
 
 
+def _file(row: "Row") -> str:
+    return Path(row["source_file"]).name
+
+
 EARLIER_STATUS = {
     "paid": "was paid",
     "rejected": "was rejected",
@@ -80,7 +85,8 @@ EARLIER_STATUS = {
 
 
 def _revision_message(number: str, row: Row, before: int, after: int, added: list[str], removed: list[str], currency: str) -> str:
-    """'Revision of INV-1004: run #6 ($1,890.00) was paid. This version adds 5 × GadgetX @ $750.00, so the total rises by $4,050.00 to $5,940.00.'"""
+    """'Revision of INV-1004. The earlier version, invoice_1004.json ($1,890.00), was paid. This version adds 5 × GadgetX
+    @ $750.00, so the total rises by $4,050.00 to $5,940.00.'"""
     status = EARLIER_STATUS.get(row["status"], f"is {row['status']}")
     changes = []
     if added:
@@ -96,7 +102,7 @@ def _revision_message(number: str, row: Row, before: int, after: int, added: lis
     else:
         total = f"the total stays at {format_money(after, currency)}"
     return (
-        f"Revision of {number}: run #{row['id']} ({format_money(before, currency)}) {status}. "
+        f"Revision of {number}. The earlier version, {_file(row)} ({format_money(before, currency)}), {status}. "
         f"This version {what}, so {total}."
     )
 
@@ -124,7 +130,8 @@ def compare(
                 kind="identical",
                 earlier_run_id=row["id"],
                 earlier_status=row["status"],
-                message=f"Identical to run #{row['id']} ({row['source_file']}), which is {row['status']}",
+                earlier_file=_file(row),
+                message=f"Same invoice as {_file(row)}, which {EARLIER_STATUS.get(row['status'], 'is ' + row['status'])}",
             )
 
     if same_key:
@@ -140,6 +147,7 @@ def compare(
             kind="revised",
             earlier_run_id=row["id"],
             earlier_status=row["status"],
+            earlier_file=_file(row),
             message=message,
             findings=[
                 Finding(
@@ -158,13 +166,14 @@ def compare(
 
     row = earlier[0]
     message = (
-        f"{identity.number} was already used by vendor '{row['vendor']}' (run #{row['id']}, {row['status']}); "
+        f"{identity.number} was already used by vendor '{row['vendor']}' ({_file(row)}, {row['status']}); "
         f"this invoice is from '{invoice.vendor}'"
     )
     return DuplicateVerdict(
         kind="vendor_conflict",
         earlier_run_id=row["id"],
         earlier_status=row["status"],
+        earlier_file=_file(row),
         message=message,
         findings=[
             Finding(

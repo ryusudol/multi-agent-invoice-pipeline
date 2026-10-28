@@ -151,6 +151,14 @@ def get_run(run_id: int) -> sqlite3.Row | None:
         return conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
 
 
+def list_runs(status: str | None = None) -> list[sqlite3.Row]:
+    """Newest first."""
+    with transaction() as conn:
+        if status is None:
+            return conn.execute("SELECT * FROM runs ORDER BY id DESC").fetchall()
+        return conn.execute("SELECT * FROM runs WHERE status = ? ORDER BY id DESC", (status,)).fetchall()
+
+
 def earlier_runs(invoice_number: str, before_run_id: int) -> list[sqlite3.Row]:
     """Earlier runs with the same normalized number, newest first. Failed and duplicate runs don't count."""
     with transaction() as conn:

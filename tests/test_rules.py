@@ -120,7 +120,7 @@ def test_tax_and_shipping_without_rate(catalog):
 def test_line_amount_mismatch(catalog):
     invoice = make_invoice(line_items=[line("WidgetA", 10, 250.0, stated_amount=2600.0), line("WidgetB", 5, 500.0)])
     findings, _ = findings_for(invoice, catalog)
-    assert [f.message for f in findings] == ["Line 1 amount overstated by $100.00: stated $2,600.00, computed $2,500.00"]
+    assert [f.message for f in findings] == ["WidgetA amount overstated by $100.00: stated $2,600.00, computed $2,500.00"]
 
 
 def test_price_below_catalog_is_fine(catalog):
