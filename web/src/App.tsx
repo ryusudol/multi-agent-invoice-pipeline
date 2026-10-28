@@ -66,7 +66,7 @@ export default function App() {
         <Sidebar runs={runs.data} selected={selected} onSelect={select} />
         <section className="flex min-h-0 flex-col overflow-hidden max-md:min-h-[60vh]">
           {selected === null ? (
-            <div className="overflow-y-auto"><Overview metrics={metrics.data} /></div>
+            <div className="overflow-y-auto"><Overview metrics={metrics.data} runCount={runs.data?.length ?? 0} onSelect={select} /></div>
           ) : detail.data ? (
             <Detail key={selected} run={detail.data} onSelect={select} />
           ) : detail.error ? (

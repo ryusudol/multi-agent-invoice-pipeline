@@ -164,20 +164,24 @@ def source_files() -> set[str]:
         return {row[0] for row in conn.execute("SELECT DISTINCT source_file FROM runs")}
 
 
-def status_counts() -> dict[str, int]:
+def finished_runs() -> list[sqlite3.Row]:
+    """Oldest first, with just what the overview routes on: status, policy mode, and whether a human reviewed it."""
     with transaction() as conn:
-        return dict(conn.execute("SELECT status, COUNT(*) FROM runs GROUP BY status").fetchall())
+        return conn.execute(
+            "SELECT id, source_file, status, json_extract(policy_json, '$.mode') AS policy_mode, "
+            "json_extract(decision_json, '$.review') IS NOT NULL AS reviewed "
+            "FROM runs WHERE status != 'processing' ORDER BY id"
+        ).fetchall()
 
 
-def finding_counts() -> dict[str, int]:
-    """Runs with at least one finding of each code."""
+def findings() -> list[sqlite3.Row]:
+    """(run_id, code, severity) for every validation finding."""
     with transaction() as conn:
-        return dict(
-            conn.execute(
-                "SELECT json_extract(f.value, '$.code'), COUNT(DISTINCT runs.id) "
-                "FROM runs, json_each(runs.validation_json, '$.findings') AS f GROUP BY 1"
-            ).fetchall()
-        )
+        return conn.execute(
+            "SELECT runs.id AS run_id, json_extract(f.value, '$.code') AS code, "
+            "json_extract(f.value, '$.severity') AS severity "
+            "FROM runs, json_each(runs.validation_json, '$.findings') AS f ORDER BY runs.id, f.key"
+        ).fetchall()
 
 
 def earlier_runs(invoice_number: str, before_run_id: int) -> list[sqlite3.Row]:

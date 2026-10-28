@@ -37,7 +37,7 @@ export function Row({ label, children }: { label: string; children: ReactNode })
 export function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
     <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <h3 className="eyebrow">{title}</h3>
         {aside}
       </div>

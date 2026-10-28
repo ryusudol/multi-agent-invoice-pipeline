@@ -2,6 +2,7 @@
 
 import io
 import threading
+from collections import Counter
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from fastapi.testclient import TestClient
 import api.app as app_module
 from api.app import app
 from invoice_agent import config, db
+from invoice_agent.ingestion.loader import invoice_files
 
 from .scripted import ScriptedModels, load_fixture
 
@@ -75,8 +77,36 @@ def test_progress_list_and_metrics(client):
     assert processed == ["invoice_1010.txt", "invoice_1011.pdf", "invoice_1011.txt", "invoice_1016.json"]
 
     m = client.get("/api/metrics").json()
-    assert m["by_status"] == {"needs_review": 1, "paid": 1, "duplicate": 1, "rejected": 1}
-    assert m["findings_by_code"]["unknown_item"] == 1
+    assert [r["file"] for r in m["runs"]] == ["invoice_1010.txt", "invoice_1011.pdf", "invoice_1011.txt", "invoice_1016.json"]
+    assert [f["code"] for f in m["runs"][3]["findings"]] == ["unknown_item"]
+
+
+def flow_ends(flow: list[dict]) -> Counter:
+    """Invoices per final step; every path starts at received."""
+    ends: Counter = Counter()
+    for path in flow:
+        assert path["steps"][0] == "received"
+        ends[path["steps"][-1]] += path["value"]
+    return ends
+
+
+def test_flow_ends_where_the_invoices_did(client):
+    for path in invoice_files(INVOICES):
+        run_sample(client, path.name)
+    statuses = Counter(r["status"] for r in client.get("/api/invoices").json())
+
+    ends = flow_ends(client.get("/api/metrics").json()["flow"])
+    assert ends == statuses and ends.total() == 20
+
+    waiting = next(r for r in client.get("/api/invoices").json() if r["status"] == "needs_review")
+    client.post(f"/api/invoices/{waiting['id']}/review", json={"decision": "approve"})
+    after = flow_ends(client.get("/api/metrics").json()["flow"])
+    assert (after["paid"], after["needs_review"]) == (ends["paid"] + 1, ends["needs_review"] - 1)
+
+    runs = client.get("/api/metrics").json()["runs"]
+    assert [r["file"] for r in runs] == sorted(r["file"] for r in runs)
+    unknown = next(r for r in runs if r["file"] == "invoice_1008.txt")["findings"]
+    assert [f["severity"] for f in unknown if f["code"] == "unknown_item"] == ["error", "error"]
 
 
 def test_upload_runs_the_file(client):

@@ -7,7 +7,9 @@ The dashboard polls for progress; every stage is saved to SQLite as it finishes.
 import contextvars
 import getpass
 import json
+import sqlite3
 import uuid
+from collections import Counter
 from collections.abc import AsyncIterator
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from contextlib import asynccontextmanager
@@ -22,7 +24,7 @@ from invoice_agent import config, db
 from invoice_agent.events import PipelineEvent, now_iso
 from invoice_agent.ingestion.loader import is_invoice
 from invoice_agent.ingestion.normalize import due_date_text, normalize_invoice_number
-from invoice_agent.models import FindingCode, RunStatus
+from invoice_agent.models import FindingCode, PolicyMode, RunStatus, Severity
 from invoice_agent.orchestrator import (
     ReviewError,
     RunState,
@@ -110,9 +112,26 @@ class ReviewRequest(BaseModel):
     comment: str = ""
 
 
+class FlowPath(BaseModel):
+    steps: list[str]  # received, how it was routed, ..., how it ended
+    value: int  # invoices that took this path
+
+
+class RunFinding(BaseModel):
+    code: FindingCode
+    severity: Severity
+
+
+class RunFindings(BaseModel):
+    id: int
+    file: str
+    status: RunStatus
+    findings: list[RunFinding]
+
+
 class Metrics(BaseModel):
-    by_status: dict[RunStatus, int]
-    findings_by_code: dict[FindingCode, int]  # invoices with at least one finding of that kind
+    flow: list[FlowPath]  # how finished invoices were routed and decided
+    runs: list[RunFindings]  # finished invoices by file name, with what the checks found
 
 
 def headline(state: RunState) -> str:
@@ -126,6 +145,21 @@ def headline(state: RunState) -> str:
     if state.decision and state.decision.reasons:
         return state.decision.reasons[0]
     return ""
+
+
+def route(row: sqlite3.Row) -> list[str]:
+    """Flow nodes one finished run passed through. decided_by turns into "human" after a review, so the
+    policy mode says who sent it there."""
+    status = row["status"]
+    if status == RunStatus.DUPLICATE:
+        return ["received", "seen_before", status]
+    if status == RunStatus.FAILED:
+        return ["received", status]
+    if row["policy_mode"] == PolicyMode.REJECT:
+        return ["received", "rules_reject", status]
+    gate = "rules_review" if row["policy_mode"] == PolicyMode.HUMAN_REVIEW else "agents"
+    human = gate == "rules_review" or row["reviewed"] or status == RunStatus.NEEDS_REVIEW
+    return ["received", gate, "human", status] if human else ["received", gate, status]
 
 
 def summarize(state: RunState) -> RunSummary:
@@ -239,7 +273,19 @@ def review(run_id: int, body: ReviewRequest) -> RunDetail:
 
 @app.get("/api/metrics")
 def metrics() -> Metrics:
-    return Metrics.model_validate({"by_status": db.status_counts(), "findings_by_code": db.finding_counts()})
+    finished = db.finished_runs()
+    paths = Counter(tuple(route(row)) for row in finished)
+    found: dict[int, list[RunFinding]] = {}
+    for f in db.findings():
+        found.setdefault(f["run_id"], []).append(RunFinding(code=f["code"], severity=f["severity"]))
+    runs = [
+        RunFindings(id=row["id"], file=Path(row["source_file"]).name, status=row["status"], findings=found.get(row["id"], []))
+        for row in finished
+    ]
+    return Metrics(
+        flow=[FlowPath(steps=list(steps), value=n) for steps, n in paths.items()],
+        runs=sorted(runs, key=lambda r: (r.file, r.id)),
+    )
 
 
 if WEB_DIST.is_dir():

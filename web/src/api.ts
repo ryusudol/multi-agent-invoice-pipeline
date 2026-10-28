@@ -111,9 +111,21 @@ export interface RunDetail extends RunSummary {
   events: PipelineEvent[];
 }
 
+export interface FlowPath {
+  steps: string[];  // received, how it was routed, ..., how it ended
+  value: number;
+}
+
+export interface RunFindings {
+  id: number;
+  file: string;
+  status: RunStatus;
+  findings: { code: string; severity: Severity }[];
+}
+
 export interface Metrics {
-  by_status: Partial<Record<RunStatus, number>>;
-  findings_by_code: Record<string, number>;
+  flow: FlowPath[];
+  runs: RunFindings[];
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
