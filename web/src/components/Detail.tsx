@@ -17,11 +17,12 @@ export function Detail({ run, onSelect }: { run: RunDetail; onSelect: (id: numbe
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-line px-5 pt-6 sm:px-8">
-        {run.invoice_number && <p className="font-mono text-xs text-muted">{run.file}</p>}
+        {/* Both lines keep their space while hidden, so the header doesn't jump as the run fills in. */}
+        <p className={`font-mono text-xs text-muted ${!run.invoice_number && processing ? "invisible" : ""}`}>{run.file}</p>
         <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
             <h2 className="text-3xl font-light tracking-wide sm:text-4xl">{run.invoice_number ?? (processing ? run.file : "No invoice number")}</h2>
-            {!queued && <p className="mt-1 truncate text-muted">{run.vendor ?? (processing ? "Reading the document…" : "No vendor")}</p>}
+            <p className={`mt-1 truncate text-muted ${queued ? "invisible" : ""}`}>{run.vendor ?? (processing ? "Reading the document…" : "No vendor")}</p>
           </div>
           <div className="text-right">
             <div className="text-3xl font-light tabular-nums sm:text-4xl">{money(run.total_cents, run.currency)}</div>
