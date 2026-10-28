@@ -91,8 +91,10 @@ def test_repeated_lines_are_not_merged():
 def test_revision_is_same_number_different_content():
     result = verdict(INV_1004_REVISED, row(4, INV_1004))
     assert result.kind == "revised"
-    assert "added 5 × gadgetx @ $750.00" in result.message
-    assert "total +$4,050.00" in result.message
+    assert result.message == (
+        "Revision of INV-1004: run #4 ($1,890.00) was paid. "
+        "This version adds 5 × GadgetX @ $750.00, so the total rises by $4,050.00 to $5,940.00."
+    )
     [finding] = result.findings
     assert finding.code == FindingCode.REVISED_INVOICE
     assert finding.data["total_change_cents"] == 405000

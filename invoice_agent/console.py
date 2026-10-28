@@ -10,9 +10,10 @@ from rich.table import Table
 from rich.text import Text
 
 from invoice_agent.events import EventType, PipelineEvent
-from invoice_agent.ingestion.normalize import format_money
-from invoice_agent.models import Outcome, RunStatus, Severity
+from invoice_agent.ingestion.normalize import format_money, parse_date
+from invoice_agent.models import Outcome, RunStatus, Severity, Usage
 from invoice_agent.orchestrator import RunState
+from invoice_agent.payment import amount_due
 
 STATUS_STYLE = {
     RunStatus.PAID: ("PAID", "bold green"),
@@ -130,7 +131,19 @@ def status_text(status: RunStatus) -> Text:
     return Text(label, style=style)
 
 
-def render_result(console: Console, state: RunState) -> None:
+def due_date_text(raw: str | None) -> str:
+    """One format for every invoice ('02/28/2026' -> '2026-02-28'); a value that isn't a date is shown as written."""
+    if raw is None:
+        return "—"
+    parsed = parse_date(raw)
+    return parsed.isoformat() if parsed else f"{raw} (not a date)"
+
+
+def usage_text(usage: Usage) -> str:
+    return f"{usage.requests} requests · {usage.input_tokens:,} in / {usage.output_tokens:,} out tokens"
+
+
+def render_result(console: Console, state: RunState, verbose: bool = False) -> None:
     invoice = state.invoice
     title = Text.assemble(
         status_text(state.status),
@@ -144,12 +157,19 @@ def render_result(console: Console, state: RunState) -> None:
     summary.add_column(style="dim")
     summary.add_column()
     summary.add_row("File", state.name)
-    summary.add_row("Total", format_money(state.total_cents, state.currency))
-    if state.policy:
-        summary.add_row("Policy", f"{state.policy.mode}")
+    if invoice:
+        summary.add_row("Due date", due_date_text(invoice.due_date))
+    total = state.total_cents
+    summary.add_row("Total", format_money(total, state.currency))
+    due = due_on_approval(state) if state.status == RunStatus.NEEDS_REVIEW else None
+    if total is not None and due is not None and due != total:
+        if due == 0:
+            summary.add_row("Due on approval", f"{format_money(0, state.currency)} (already paid in full)")
+        else:
+            paid = format_money(total - due, state.currency)
+            summary.add_row("Due on approval", f"{format_money(due, state.currency)} ({paid} already paid)")
     if state.decision:
         d = state.decision
-        summary.add_row("Decided by", f"{d.decided_by.replace('_', ' + ')}" + (f" after {d.rounds} critique round(s)" if d.rounds else ""))
         summary.add_row("Rationale", bullets(d.rationale))
         if d.review:
             summary.add_row("Reviewer", f"{d.review.reviewer}: {d.review.outcome}" + (f" — {d.review.comment}" if d.review.comment else ""))
@@ -157,20 +177,20 @@ def render_result(console: Console, state: RunState) -> None:
             summary.add_row("Critic issues", "\n".join(f"• {i}" for i in d.critic_issues))
     if state.payment:
         p = state.payment
-        summary.add_row("Payment", f"{p.status.replace('_', ' ')}: {format_money(p.amount_cents, p.currency)}  [dim]{p.idempotency_key}[/dim]")
+        amount = format_money(p.amount_cents, p.currency)
+        summary.add_row("Payment", amount if p.status == "paid" else f"{amount} ({p.status.replace('_', ' ')})")
     if state.status == RunStatus.DUPLICATE and state.duplicate:
         summary.add_row("Duplicate of", f"run #{state.duplicate.earlier_run_id} ({state.duplicate.earlier_status})")
-        summary.add_row("", "[dim]Run with --reset to start from an empty database.[/dim]")
     if state.error:
         summary.add_row("Error", Text(state.error, style="magenta"))
-    usage = state.usage
-    summary.add_row("LLM usage", f"{usage.requests} requests · {usage.input_tokens:,} in / {usage.output_tokens:,} out tokens · {state.duration_ms / 1000:.1f}s")
+    if verbose:
+        summary.add_row("LLM usage", f"{usage_text(state.usage)} · {state.duration_ms / 1000:.1f}s")
     body.append(summary)
 
     if state.validation and state.validation.findings:
         findings = Table(show_header=True, header_style="bold", box=None, pad_edge=False)
         findings.add_column("", width=1)
-        findings.add_column("Finding")
+        findings.add_column("Issue")
         findings.add_column("Detail")
         for f in state.validation.findings:
             mark = Text("✗", style="red") if f.severity == Severity.ERROR else Text("!", style="yellow")
@@ -192,7 +212,9 @@ def render_summary(console: Console, states: list[RunState]) -> None:
         elif state.error:
             reason = state.error
         elif state.payment:
-            reason = f"paid {format_money(state.payment.amount_cents, state.payment.currency)}"
+            # Only worth saying when part of the total was paid (a revision).
+            p = state.payment
+            reason = "" if p.amount_cents == state.total_cents else f"paid {format_money(p.amount_cents, p.currency)}"
         elif state.decision:
             reason = "; ".join(state.decision.reasons[:2])
         else:
@@ -211,20 +233,52 @@ def render_summary(console: Console, states: list[RunState]) -> None:
         counts[state.status] = counts.get(state.status, 0) + 1
     paid = sum(s.payment.amount_cents for s in states if s.payment and s.payment.currency == "USD")
     parts = [f"{n} {STATUS_STYLE[status][0].lower()}" for status, n in counts.items()]
-    console.print(f"{len(states)} invoice(s): " + ", ".join(parts) + f" · {format_money(paid)} paid")
+    usage = Usage()
+    for state in states:
+        usage.add(state.usage)
+    console.print(
+        f"{len(states)} invoice(s): " + ", ".join(parts) + f" · {format_money(paid)} paid · {usage_text(usage)}",
+        highlight=False,
+    )
+
+
+def due_on_approval(state: RunState) -> int | None:
+    """What approving would pay right now: the total minus earlier payments for the same invoice key."""
+    total = state.total_cents
+    return amount_due(state.identity.key, total) if state.identity and total is not None else total
+
+
+def payment_question(state: RunState) -> str:
+    total, due = state.total_cents, due_on_approval(state)
+    if total is None or due is None or due == total:
+        return f"Pay {format_money(total, state.currency)}?"
+    if due == 0:
+        return f"Approve {format_money(total, state.currency)}? Nothing more is due; it is already paid"
+    paid = total - due
+    return (
+        f"Pay {format_money(due, state.currency)} "
+        f"({format_money(total, state.currency)} minus {format_money(paid, state.currency)} already paid)?"
+    )
 
 
 def ask_review(console: Console, state: RunState) -> tuple[Outcome, str] | None:
     """Ask a human to approve or reject. None means skip for now."""
     invoice = state.invoice
     name = f"{invoice.invoice_number} · {invoice.vendor}" if invoice else state.name
-    console.print(f"\n[bold yellow]Review needed:[/bold yellow] {name} — {format_money(state.total_cents, state.currency)}")
+    console.print(
+        f"\n[bold yellow]Review needed:[/bold yellow] {name} — {format_money(state.total_cents, state.currency)}",
+        highlight=False,
+    )
+    reasons = Table.grid(padding=(0, 1))
+    reasons.add_column(width=3, justify="right")
+    reasons.add_column()
     for reason in state.decision.reasons if state.decision else []:
-        console.print(f"  • {reason}")
+        reasons.add_row("•", Text(reason))
+    console.print(reasons)
     choice = Prompt.ask("Decision", choices=["approve", "reject", "skip"], default="skip", console=console)
     if choice == "skip":
         return None
     comment = Prompt.ask("Comment", default="", console=console)
-    if choice == "approve" and not Confirm.ask(f"Pay {format_money(state.total_cents, state.currency)}?", console=console):
+    if choice == "approve" and not Confirm.ask(payment_question(state), console=console):
         return None
     return Outcome(choice), comment

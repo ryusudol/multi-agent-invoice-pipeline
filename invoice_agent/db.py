@@ -114,15 +114,9 @@ def init_db(path: Path | None = None, reset: bool = False) -> None:
         )
 
 
-# --- inventory ---------------------------------------------------------------
-
-
 def load_inventory() -> dict[str, sqlite3.Row]:
     with transaction() as conn:
         return {row["item"]: row for row in conn.execute("SELECT item, stock, unit_price FROM inventory")}
-
-
-# --- runs ----------------------------------------------------------------------
 
 
 def create_run(source_file: str, started_at: str) -> int:
@@ -175,9 +169,6 @@ def runs_for_number(invoice_number: str) -> list[sqlite3.Row]:
         ).fetchall()
 
 
-# --- events --------------------------------------------------------------------
-
-
 def insert_event(run_id: int, ts: str, stage: str, type_: str, message: str, payload: str) -> None:
     with transaction() as conn:
         conn.execute(
@@ -189,9 +180,6 @@ def insert_event(run_id: int, ts: str, stage: str, type_: str, message: str, pay
 def list_events(run_id: int) -> list[sqlite3.Row]:
     with transaction() as conn:
         return conn.execute("SELECT * FROM events WHERE run_id = ? ORDER BY id", (run_id,)).fetchall()
-
-
-# --- payments ------------------------------------------------------------------
 
 
 def paid_cents(invoice_key: str) -> int:
@@ -223,7 +211,7 @@ def insert_payment(
     idempotency_key: str,
     paid_at: str,
 ) -> int | None:
-    """Insert a payment. None if the idempotency key was already used."""
+    """None if the idempotency key was already used."""
     try:
         with transaction() as conn:
             cur = conn.execute(

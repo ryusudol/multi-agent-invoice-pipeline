@@ -22,7 +22,7 @@ MONEY_TOLERANCE_CENTS = 1
 
 # Extraction retries after a schema, parse, or source-match failure.
 EXTRACTION_RETRIES = 2
-# VP draft + Critic review rounds for strict review before escalating to a human.\
+# VP draft + Critic review rounds for strict review before escalating to a human.
 MAX_CRITIQUE_ROUNDS = 3
 
 

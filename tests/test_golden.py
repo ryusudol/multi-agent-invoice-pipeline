@@ -1,8 +1,10 @@
 """The §10 answer key, end to end and offline. Agent outputs replay from tests/fixtures/ (recorded live)."""
 
 import pytest
+from rich.console import Console
 
 from invoice_agent import config, db
+from invoice_agent.console import render_result
 from invoice_agent.models import FindingCode, PolicyMode, RunStatus
 from invoice_agent.orchestrator import resolve_review, run_pipeline
 
@@ -81,11 +83,24 @@ def test_batch_matches_answer_key(replay, capsys):
     assert "WidgetC" in messages("invoice_1016.json")
     revision = next(f for f in states["invoice_1004_revised.json"].validation.findings if f.code == FindingCode.REVISED_INVOICE)
     assert revision.data["total_change_cents"] == 405000
-    assert "5 × gadgetx" in revision.message
+    assert "adds 5 × GadgetX @ $750.00" in revision.message
     rush = next(f for f in states["invoice_1010.txt"].validation.findings if f.code == FindingCode.PRICE_ABOVE_CATALOG)
     assert rush.data["overcharge_cents"] == 20000
     assert states["invoice_1013.pdf"].duplicate.earlier_status == RunStatus.REJECTED
     assert states["invoice_1011.txt"].duplicate.earlier_run_id == states["invoice_1011.pdf"].run_id
+
+    # The review card shows what approving would pay: the revision only owes the difference.
+    card = Console(width=200, record=True)
+    render_result(card, states["invoice_1004_revised.json"])
+    text = card.export_text()
+    assert "Due on approval  $4,050.00 ($1,890.00 already paid)" in text
+    assert "Due date         2026-02-22" in text
+    card = Console(width=200, record=True)
+    render_result(card, states["invoice_1003.txt"])
+    assert "Due date   yesterday (not a date)" in card.export_text()
+    card = Console(width=200, record=True)
+    render_result(card, states["invoice_1010.txt"])
+    assert "Due on approval" not in card.export_text()  # nothing paid yet, so it would repeat Total
 
     # Human review: approving the revision pays only the difference; approving 1010 pays its total.
     revised = resolve_review(states["invoice_1004_revised.json"].run_id, "approve", "PO amendment confirmed")
@@ -97,6 +112,8 @@ def test_batch_matches_answer_key(replay, capsys):
     # Synthetic over-$10K invoice: approved after strict review.
     extra = run(replay, EXTRA / "invoice_2001.txt")
     assert extra.policy.mode == PolicyMode.STRICT
+    policy_line = next(e["message"] for e in db.list_events(extra.run_id) if e["type"] == "stage_completed" and e["stage"] == "policy_gate")
+    assert policy_line == "strict: Total $12,500.00 is over $10,000.00"  # the $10K rule stays visible
     assert (extra.status, extra.payment.amount_cents) == (RunStatus.PAID, 1250000)
 
 

@@ -57,16 +57,48 @@ def identify(invoice: Invoice) -> InvoiceIdentity | None:
     return InvoiceIdentity(number=number, vendor=vendor, key=f"{number}/{vendor}", fingerprint=digest[:16])
 
 
-def _describe(line: LineKey) -> str:
+def _describe(line: LineKey, names: Mapping[str, str]) -> str:
     item, quantity, price = line
-    return f"{quantity} × {item} @ {format_money(price)}"
+    return f"{quantity} × {names.get(item, item)} @ {format_money(price)}"
 
 
 def line_diff(earlier: Invoice, current: Invoice) -> tuple[list[str], list[str]]:
     before, after = Counter(_line_keys(earlier)), Counter(_line_keys(current))
-    added = [_describe(line) for line in (after - before).elements()]
-    removed = [_describe(line) for line in (before - after).elements()]
+    # Match on lowercased keys; show the invoice's spelling ("GadgetX", not "gadgetx").
+    names = {item_key(i.description).lower(): item_key(i.description) for i in [*earlier.line_items, *current.line_items]}
+    added = [_describe(line, names) for line in (after - before).elements()]
+    removed = [_describe(line, names) for line in (before - after).elements()]
     return added, removed
+
+
+EARLIER_STATUS = {
+    "paid": "was paid",
+    "rejected": "was rejected",
+    "needs_review": "is waiting for review",
+    "processing": "is still being processed",
+}
+
+
+def _revision_message(number: str, row: Row, before: int, after: int, added: list[str], removed: list[str], currency: str) -> str:
+    """'Revision of INV-1004: run #6 ($1,890.00) was paid. This version adds 5 × GadgetX @ $750.00, so the total rises by $4,050.00 to $5,940.00.'"""
+    status = EARLIER_STATUS.get(row["status"], f"is {row['status']}")
+    changes = []
+    if added:
+        changes.append("adds " + ", ".join(added))
+    if removed:
+        changes.append("removes " + ", ".join(removed))
+    what = " and ".join(changes) if changes else "changes other details"
+    change = after - before
+    if change > 0:
+        total = f"the total rises by {format_money(change, currency)} to {format_money(after, currency)}"
+    elif change < 0:
+        total = f"the total drops by {format_money(-change, currency)} to {format_money(after, currency)}"
+    else:
+        total = f"the total stays at {format_money(after, currency)}"
+    return (
+        f"Revision of {number}: run #{row['id']} ({format_money(before, currency)}) {status}. "
+        f"This version {what}, so {total}."
+    )
 
 
 Row = Mapping[str, Any] | sqlite3.Row
@@ -103,14 +135,7 @@ def compare(
         after_total = compute_totals(invoice).payable_cents or 0
         change = after_total - before_total
         currency = normalize_currency(invoice.currency)
-        parts = []
-        if added:
-            parts.append("added " + ", ".join(added))
-        if removed:
-            parts.append("removed " + ", ".join(removed))
-        sign = "+" if change >= 0 else "-"
-        parts.append(f"total {sign}{format_money(abs(change), currency)}")
-        message = f"Same number as run #{row['id']} ({row['status']}) with different content: " + "; ".join(parts)
+        message = _revision_message(identity.number, row, before_total, after_total, added, removed, currency)
         return DuplicateVerdict(
             kind="revised",
             earlier_run_id=row["id"],

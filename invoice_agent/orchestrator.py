@@ -10,7 +10,6 @@ import time
 from collections.abc import Callable
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior
@@ -31,6 +30,7 @@ from invoice_agent.models import (
     InvoiceIdentity,
     Outcome,
     PaymentResult,
+    PolicyMode,
     PolicyResult,
     RunStatus,
     Usage,
@@ -58,6 +58,8 @@ class Stage(StrEnum):
     DUPLICATE = "duplicate"
     FAILED = "failed"
 
+
+DECIDED_BY = {"policy": "policy", "vp_critic": "VP + critic", "human": "human"}
 
 TERMINAL = {Stage.NEEDS_REVIEW, Stage.PAID, Stage.REJECTED, Stage.DUPLICATE, Stage.FAILED}
 
@@ -118,9 +120,6 @@ class RunState(BaseModel):
 
 class ReviewError(ValueError):
     pass
-
-
-# --- persistence -----------------------------------------------------------------
 
 
 def _json(model: BaseModel | None) -> str | None:
@@ -188,13 +187,6 @@ def load_state(run_id: int) -> RunState:
     )
 
 
-# --- stage handlers: each returns (condition, one-line summary) -------------------------
-
-
-def _deps(state: RunState, sink: EventSink, stage: Stage, **extra: Any) -> AgentDeps:
-    return AgentDeps(sink=sink, stage=stage.value, **extra)
-
-
 def _load(state: RunState, sink: EventSink) -> tuple[str, str]:
     path = Path(state.source_file)
     state.source_text = load_text(path)
@@ -204,14 +196,15 @@ def _load(state: RunState, sink: EventSink) -> tuple[str, str]:
 
 def _extract(state: RunState, sink: EventSink) -> tuple[str, str]:
     assert state.source_text is not None
-    deps = _deps(state, sink, Stage.EXTRACT, source_text=state.source_text)
+    deps = AgentDeps(sink=sink, stage=Stage.EXTRACT, source_text=state.source_text)
     invoice = intake.extract(state.name, state.source_text, deps, state.usage)
     state.invoice = invoice
     total = format_money(state.total_cents, state.currency)
     risks = f", {len(invoice.risk_signals)} risk signal(s)" if invoice.risk_signals else ""
+    n = len(invoice.line_items)
     return "extracted", (
         f"{invoice.invoice_number or 'no number'} · {invoice.vendor or 'no vendor'} · "
-        f"{len(invoice.line_items)} line(s) · {total}{risks}"
+        f"{n} item{'s' * (n != 1)} · {total}{risks}"
     )
 
 
@@ -238,7 +231,7 @@ def _validate(state: RunState, sink: EventSink) -> tuple[str, str]:
     lines = match_lines(invoice, catalog)
     summary, overrides = "", []
     if invoice.line_items:
-        deps = _deps(state, sink, Stage.VALIDATE, catalog=catalog)
+        deps = AgentDeps(sink=sink, stage=Stage.VALIDATE, catalog=catalog)
         proposal = validation.match_items(invoice, deps, state.usage)
         summary = proposal.summary
         overrides = validation.reconcile(lines, proposal, deps)
@@ -255,7 +248,8 @@ def _validate(state: RunState, sink: EventSink) -> tuple[str, str]:
     for finding in findings:
         sink.emit(Stage.VALIDATE, EventType.FINDING, f"[{finding.severity}] {finding.message}", **finding.model_dump(mode="json"))
     report = state.validation
-    return "validated", f"{len(report.errors)} error(s), {len(report.warnings)} warning(s)"
+    errors, warnings = len(report.errors), len(report.warnings)
+    return "validated", f"{errors} error{'s' * (errors > 1)}, {warnings} warning{'s' * (warnings > 1)}"
 
 
 def _policy_gate(state: RunState, sink: EventSink) -> tuple[str, str]:
@@ -263,18 +257,21 @@ def _policy_gate(state: RunState, sink: EventSink) -> tuple[str, str]:
     state.policy = policy_engine.evaluate(state.validation)
     message = f"{state.policy.mode}: " + "; ".join(state.policy.reasons)
     sink.emit(Stage.POLICY_GATE, EventType.POLICY, message, **state.policy.model_dump(mode="json"))
+    # Reject and human-review reasons are findings already on screen; strict ones (the $10K rule) are not.
+    if state.policy.mode in (PolicyMode.REJECT, PolicyMode.HUMAN_REVIEW):
+        return "gated", f"{state.policy.mode}"
     return "gated", message
 
 
 def _approval(state: RunState, sink: EventSink) -> tuple[str, str]:
     assert state.invoice is not None and state.validation is not None and state.policy is not None
-    deps = _deps(state, sink, Stage.APPROVAL)
+    deps = AgentDeps(sink=sink, stage=Stage.APPROVAL)
     decision = approval.decide(state.invoice, state.validation, state.policy, deps, state.usage)
     state.decision = decision
     sink.emit(Stage.APPROVAL, EventType.DECISION, f"{decision.outcome}: {decision.rationale}", **decision.model_dump(mode="json"))
     if decision.outcome == Outcome.NEEDS_REVIEW:
         sink.emit(Stage.APPROVAL, EventType.REVIEW_REQUESTED, "Waiting for a human approve/reject decision")
-    return decision.outcome, f"{decision.outcome} ({decision.decided_by}, {decision.rounds} critique round(s))"
+    return decision.outcome, f"{decision.outcome} (decided by {DECIDED_BY[decision.decided_by]})"
 
 
 def _payment(state: RunState, sink: EventSink) -> tuple[str, str]:
@@ -312,6 +309,7 @@ def _rejection(state: RunState, sink: EventSink) -> tuple[str, str]:
     return "recorded", message
 
 
+# Each handler returns (condition for TRANSITIONS, one-line summary for the live output).
 HANDLERS: dict[Stage, Callable[[RunState, EventSink], tuple[str, str]]] = {
     Stage.LOAD: _load,
     Stage.EXTRACT: _extract,
@@ -371,9 +369,6 @@ def _drive(state: RunState, stage: Stage, sink: EventSink) -> RunState:
         usage=state.usage.model_dump(),
     )
     return state
-
-
-# --- entry points (CLI and API both call these) ----------------------------------------------
 
 
 def run_pipeline(path: str | Path, on_event: EventCallback | None = None) -> RunState:

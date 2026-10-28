@@ -10,13 +10,20 @@ from invoice_agent.models import PaymentResult
 
 
 def mock_payment(vendor: str, amount: float, currency: str = "USD", idempotency_key: str | None = None) -> dict:
-    """The README's mock banking API, plus currency and an idempotency key."""
-    print(f"Paid {amount} to {vendor}")
+    """The README's mock banking API, plus currency and an idempotency key. It doesn't print like the
+    README's; the Payment stage line reports each payment."""
     return {"status": "success", "currency": currency, "idempotency_key": idempotency_key}
 
 
 def _amount(amount_cents: int) -> str:
     return f"{amount_cents / 100:.2f}"
+
+
+def amount_due(invoice_key: str, approved_total_cents: int) -> int:
+    """What pay() would send now: 0 if this total was already reached, else the unpaid difference."""
+    if db.payment_for_total(invoice_key, approved_total_cents) is not None:
+        return 0
+    return max(approved_total_cents - db.paid_cents(invoice_key), 0)
 
 
 def pay(

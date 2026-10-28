@@ -82,12 +82,11 @@ def scripted():
         yield models
 
 
-def test_1001_runs_all_four_stages(scripted, capsys):
+def test_1001_runs_all_four_stages(scripted):
     scripted.load({"intake": [intake()], "validation": [matching("WidgetA", "WidgetB")], "vp": [vp()], "critic": [AGREE]})
     state = run_pipeline(INVOICES / "invoice_1001.txt")
     assert state.status == RunStatus.PAID
     assert state.payment.amount_cents == 500000
-    assert "Paid 5000.0 to Widgets Inc." in capsys.readouterr().out
     stages = [row["stage"] for row in db.list_events(state.run_id) if row["type"] == "stage_completed"]
     assert stages == ["load", "extract", "check_duplicate", "validate", "policy_gate", "approval", "payment"]
     assert scripted.leftovers() == {}
@@ -176,10 +175,9 @@ def test_strict_review_without_agreement_goes_to_human(scripted, monkeypatch):
     assert f"did not agree within {rounds} round(s)" in state.decision.reasons[-1]
 
 
-def test_resolve_review_from_saved_state(scripted, capsys):
+def test_resolve_review_from_saved_state(scripted):
     scripted.load({"intake": [INTAKE_1010], "validation": [matching("WidgetA", "WidgetB", "GadgetX", "WidgetA")], "vp": [vp("needs_review")], "critic": [AGREE]})
     run_id = run_pipeline(INVOICES / "invoice_1010.txt").run_id
-    capsys.readouterr()
 
     # Everything resolve_review needs comes from the database, as it would in a new process.
     assert load_state(run_id).status == RunStatus.NEEDS_REVIEW
@@ -188,7 +186,7 @@ def test_resolve_review_from_saved_state(scripted, capsys):
     assert state.payment.amount_cents == 718500
     assert state.decision.decided_by == "human"
     assert state.decision.review.comment == "Rush order agreed by phone"
-    assert capsys.readouterr().out == "Paid 7185.0 to Consolidated Materials Group\n"
+    assert state.payment.status == "paid"
 
     with pytest.raises(ReviewError):
         resolve_review(run_id, Outcome.APPROVE, "again")

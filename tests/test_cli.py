@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 import main
@@ -41,13 +43,29 @@ def test_wrong_path_suggests_a_file(capsys):
     assert "Did you mean" in out and out.rstrip().endswith("invoice_1001.txt?")
 
 
+@pytest.mark.parametrize(
+    ("typed", "suggested"),
+    [
+        ("data/invoices/invoice_1010.tx", "data/invoices/invoice_1010.txt"),  # typo in the name
+        ("data/invoice/invoice_1010.txt", "data/invoices/invoice_1010.txt"),  # typo in the folder
+        ("data/invoicez", "data/invoices"),  # a folder to process in batch
+        ("invoice_1010.txt", "data/invoices/invoice_1010.txt"),  # right name, wrong folder
+        ("invoice_1010", "data/invoices/invoice_1010.txt"),  # not the invoice_agent package
+        ("data/invoices/zzz", None),
+    ],
+)
+def test_suggest_path(monkeypatch, typed, suggested):
+    monkeypatch.chdir(config.ROOT)
+    assert main.suggest_path(Path(typed)) == suggested
+
+
 def test_review_prompt_approves_and_pays(answers, capsys):
     answers += ["approve", "Rush order agreed", True]
     with ScriptedModels().active() as models:
         models.load(SCRIPT_1010)
         assert main.main(["--invoice_path", str(INVOICES / "invoice_1010.txt")]) == 0
     assert load_state(1).status == RunStatus.PAID
-    assert "Paid 7185.0 to Consolidated Materials Group" in capsys.readouterr().out
+    assert "Paid $7,185.00 to Consolidated Materials Group" in capsys.readouterr().out
 
 
 def test_review_can_be_skipped(answers):
@@ -75,6 +93,6 @@ def test_rerun_of_pending_invoice_offers_review_again(answers, capsys):
         answers += ["reject", "Not agreed"]
         main.main(["--invoice_path", str(INVOICES / "invoice_1010.txt")])
     out = capsys.readouterr().out
-    assert "DUPLICATE" in out and "--reset" in out
+    assert "DUPLICATE" in out
     assert load_state(1).status == RunStatus.REJECTED
     assert load_state(2).status == RunStatus.DUPLICATE

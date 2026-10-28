@@ -17,15 +17,39 @@ from invoice_agent.orchestrator import ReviewError, RunState, load_state, resolv
 console = Console()
 
 
+def is_invoice(path: Path) -> bool:
+    return path.is_file() and path.suffix.lower() in config.SUPPORTED_SUFFIXES
+
+
+def closest(name: str, options: list[Path]) -> Path | None:
+    match = difflib.get_close_matches(name, [p.name for p in options], n=1, cutoff=0.6)
+    return next(p for p in options if p.name == match[0]) if match else None
+
+
 def suggest_path(path: Path) -> str | None:
-    folder = path.parent if path.parent.is_dir() else Path(".")
-    candidates = [p.name for p in folder.iterdir()] if folder.is_dir() else []
-    match = difflib.get_close_matches(path.name, candidates, n=1, cutoff=0.5)
-    return str(folder / match[0]) if match else None
+    """Fix a mistyped path one part at a time (folders, then the name); otherwise find the name under data/."""
+    folder = Path(path.anchor) if path.is_absolute() else Path(".")
+    *folders, name = path.parts[1:] if path.is_absolute() else path.parts
+    for part in folders:
+        fixed = folder / part if (folder / part).is_dir() else closest(part, [p for p in folder.iterdir() if p.is_dir()])
+        if fixed is None:
+            break
+        folder = fixed
+    else:
+        options = [
+            p for p in folder.iterdir()
+            if is_invoice(p) or (not path.suffix and p.is_dir() and any(map(is_invoice, p.iterdir())))
+        ]  # fmt: skip
+        if match := closest(name, options):
+            return str(match)
+    match = closest(name, [p for p in (config.ROOT / "data").rglob("*") if is_invoice(p)])
+    if match is None:
+        return None
+    return str(match.relative_to(Path.cwd())) if match.is_relative_to(Path.cwd()) else str(match)
 
 
 def invoice_files(folder: Path) -> list[Path]:
-    return sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in config.SUPPORTED_SUFFIXES)
+    return sorted(p for p in folder.iterdir() if is_invoice(p))
 
 
 def review(state: RunState, reporter: LiveReporter) -> RunState:
@@ -39,7 +63,7 @@ def review(state: RunState, reporter: LiveReporter) -> RunState:
     except ReviewError as exc:
         console.print(f"[red]{exc}[/red]")
         return state
-    render_result(console, resolved)
+    render_result(console, resolved, verbose=reporter.verbose)
     return resolved
 
 
@@ -88,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if path.is_file():
         state = run_pipeline(path, on_event=reporter)
-        render_result(console, state)
+        render_result(console, state, verbose=args.verbose)
         waiting = pending_review(state)
         if waiting and interactive:
             review(waiting, reporter)
@@ -101,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
     states = []
     for file in files:
         state = run_pipeline(file, on_event=reporter)
-        render_result(console, state)
+        render_result(console, state, verbose=args.verbose)
         states.append(state)
     render_summary(console, states)
     if interactive:

@@ -10,9 +10,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-# --- Intake agent output ---------------------------------------------------
-
-
 class RiskSignal(BaseModel):
     description: str = Field(description="What looks suspicious and why, in one sentence")
     quote: str = Field(description="The exact text from the document that raised the concern")
@@ -67,9 +64,6 @@ class Invoice(BaseModel):
         if isinstance(value, str) and not value.strip():
             return None
         return value
-
-
-# --- Validation ------------------------------------------------------------
 
 
 class LineMatch(BaseModel):
@@ -145,9 +139,6 @@ class ValidationReport(BaseModel):
         return [f for f in self.findings if f.severity == Severity.WARNING]
 
 
-# --- Duplicates ------------------------------------------------------------
-
-
 class InvoiceIdentity(BaseModel):
     number: str  # normalized, e.g. INV-1012
     vendor: str  # normalized, e.g. quickship distributers
@@ -163,9 +154,6 @@ class DuplicateVerdict(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
 
 
-# --- Approval --------------------------------------------------------------
-
-
 class Outcome(StrEnum):
     APPROVE = "approve"
     REJECT = "reject"
@@ -173,10 +161,10 @@ class Outcome(StrEnum):
 
 
 class PolicyMode(StrEnum):
-    REJECT = "reject"  # outcome fixed: reject
-    HUMAN_REVIEW = "human_review"  # outcome fixed: needs_review
+    REJECT = "reject"
+    HUMAN_REVIEW = "human_review"
     STRICT = "strict"  # VP + Critic decide; human review if they don't agree
-    STANDARD = "standard"  # approval candidate
+    STANDARD = "standard"
 
 
 class PolicyResult(BaseModel):
@@ -230,9 +218,6 @@ class Decision(BaseModel):
     review: HumanReview | None = None
 
 
-# --- Payment ---------------------------------------------------------------
-
-
 class PaymentResult(BaseModel):
     status: Literal["paid", "already_paid", "nothing_due"]
     amount_cents: int
@@ -242,9 +227,6 @@ class PaymentResult(BaseModel):
     previously_paid_cents: int
     idempotency_key: str
     payment_id: int | None = None
-
-
-# --- Run state -------------------------------------------------------------
 
 
 class RunStatus(StrEnum):
